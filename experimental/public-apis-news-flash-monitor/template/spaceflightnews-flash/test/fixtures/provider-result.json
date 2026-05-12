@@ -1,0 +1,27 @@
+{
+  "kind": "spaceflightnews.articles",
+  "pagination": { "returned": 2, "total": 100, "limit": 2, "offset": 0 },
+  "articles": [
+    {
+      "id": 1,
+      "title": "Launch vehicle completes static fire",
+      "newsSite": "Spaceflight Now",
+      "publishedAt": "2026-05-09T00:00:00Z",
+      "updatedAt": "2026-05-09T00:10:00Z",
+      "url": "https://example.com/space-1",
+      "summary": "A launch vehicle completed a static fire test.",
+      "authors": [{ "name": "Reporter" }],
+      "launches": [{ "id": "abc" }],
+      "events": []
+    },
+    {
+      "id": 2,
+      "title": "Cargo spacecraft prepares for station mission",
+      "newsSite": "NASA",
+      "publishedAt": "2026-05-09T01:00:00Z",
+      "url": "https://example.com/space-2",
+      "summary": "A cargo spacecraft is preparing for a station mission.",
+      "authors": [{ "name": "NASA" }]
+    }
+  ]
+}

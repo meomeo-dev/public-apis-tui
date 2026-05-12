@@ -1,0 +1,141 @@
+import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+import test from 'node:test'
+
+const execFileAsync = promisify(execFile)
+const liveEnabled = process.env.PUBLIC_APIS_LIVE_E2E === '1'
+
+type IsroResult = Record<string, unknown> & {
+  kind: string
+  api: {
+    provider: string
+    authentication: string
+    usesBrowserClickstream: boolean
+    transport: string
+  }
+  query: { resource: string; search?: string; limit: number; offset: number }
+  pagination: { total: number; matched: number; returned: number }
+  items: Array<Record<string, unknown>>
+  storage: { mode?: string; persisted?: boolean }
+}
+
+test('ISRO live e2e covers catalog json, text, and offline replay', {
+  skip: liveEnabled ? false : 'set PUBLIC_APIS_LIVE_E2E=1 to call live public APIs',
+}, async () => {
+  const json = await runJson<IsroResult>([
+    'apis',
+    'run',
+    'isro.catalog',
+    '--format',
+    'json',
+    '--',
+    '--resource',
+    'spacecrafts',
+    '--search',
+    'Chandrayaan',
+    '--limit',
+    '5',
+  ])
+  assert.equal(json.kind, 'isro.catalog')
+  assert.equal(json.api.provider, 'isro')
+  assert.equal(json.api.authentication, 'none')
+  assert.equal(json.api.usesBrowserClickstream, false)
+  assert.equal(json.api.transport, 'HTTPS JSON REST')
+  assert.equal(json.query.resource, 'spacecrafts')
+  assert.equal(json.query.search, 'Chandrayaan')
+  assert.equal(json.pagination.returned > 0, true)
+  assert.equal(json.items.some(item => String(item.name).includes('Chandrayaan')), true)
+
+  const text = await runCli([
+    'apis',
+    'run',
+    'isro.catalog',
+    '--format',
+    'text',
+    '--',
+    '--resource',
+    'centres',
+    '--search',
+    'Bengaluru',
+    '--limit',
+    '3',
+  ])
+  assert.match(text.stdout, /ISRO Catalog/)
+  assert.match(text.stdout, /open REST API only · no auth/)
+  assert.match(text.stdout, /no Chrome clickstream/)
+  assert.match(text.stdout, /Bengaluru/)
+
+  await withPublicApisHome(async publicApisHome => {
+    const env = { ...process.env, PUBLIC_APIS_HOME_DIR: publicApisHome }
+    const online = await runJson<IsroResult>([
+      'apis',
+      'run',
+      'isro.catalog',
+      '--online',
+      '--persist',
+      '--format',
+      'json',
+      '--',
+      '--resource',
+      'launchers',
+      '--search',
+      'PSLV-C50',
+      '--limit',
+      '5',
+    ], env)
+    assert.equal(online.storage.persisted, true)
+    const offline = await runJson<IsroResult>([
+      'apis',
+      'run',
+      'isro.catalog',
+      '--offline',
+      '--format',
+      'json',
+      '--',
+      '--resource',
+      'launchers',
+      '--search',
+      'PSLV-C50',
+      '--limit',
+      '5',
+    ], env)
+    assert.equal(offline.storage.mode, 'offline')
+    assert.deepEqual(offline.items, online.items)
+    assert.deepEqual(offline.pagination, online.pagination)
+  })
+})
+
+async function runJson<T extends Record<string, unknown>>(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<T> {
+  const result = await runCli(args, env)
+  return JSON.parse(result.stdout) as T
+}
+
+async function runCli(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ stdout: string; stderr: string }> {
+  const result = await execFileAsync('npx', ['tsx', 'src/cli.ts', ...args], {
+    cwd: process.cwd(),
+    env,
+    maxBuffer: 1024 * 1024 * 8,
+  })
+  return result
+}
+
+async function withPublicApisHome(
+  callback: (publicApisHome: string) => Promise<void>,
+): Promise<void> {
+  const publicApisHome = await mkdtemp(join(tmpdir(), 'public-apis-isro-'))
+  try {
+    await callback(publicApisHome)
+  } finally {
+    await rm(publicApisHome, { recursive: true, force: true })
+  }
+}

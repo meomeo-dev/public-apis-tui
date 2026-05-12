@@ -1,0 +1,128 @@
+import { z } from 'zod'
+import { generatePhpNoise, type PhpNoiseGenerateInput } from '../../application/usecases/phpNoise.js'
+import type { PublicApiOperationDefinition, PublicApiProviderModule } from '../providerTypes.js'
+
+const generateParamsSchema = z.object({
+  hex: z.string().min(1).optional(),
+  tiles: z.number().int().optional(),
+  tileSize: z.number().int().optional(),
+  borderWidth: z.number().int().optional(),
+  mode: z.string().min(1).optional(),
+  multi: z.string().min(1).optional(),
+  steps: z.number().int().optional(),
+}) satisfies z.ZodType<PhpNoiseGenerateInput>
+
+const generateOperation: PublicApiOperationDefinition<PhpNoiseGenerateInput> = {
+  id: 'phpnoise.generate',
+  providerId: 'phpnoise',
+  name: 'Generate',
+  commandPath: ['phpnoise', 'generate'],
+  rpcMethod: 'phpnoise.generate',
+  description: 'Generate a PNG noise image data URL through the PHP-Noise no-auth API.',
+  category: 'art-design',
+  options: [
+    {
+      name: 'hex',
+      flag: '--hex <RRGGBB>',
+      description: 'Reference RGB hex color without #, such as 336699',
+      exposure: 'primary',
+      group: 'content',
+      reason: 'Primary documented way to control generated image color.',
+    },
+    {
+      name: 'tiles',
+      flag: '--tiles <count>',
+      description: 'Tiles per row/column, 1-50; default 50',
+      exposure: 'primary',
+      group: 'presentation',
+      reason: 'Documented default and browser/API maximum directly control image size.',
+      valueType: 'integer',
+      defaultValue: '50',
+    },
+    {
+      name: 'tileSize',
+      flag: '--tile-size <pixels>',
+      description: 'Tile size in pixels, 1-20; default 7',
+      exposure: 'primary',
+      group: 'presentation',
+      reason: 'Documented image-size control with a finite browser/API maximum.',
+      valueType: 'integer',
+      defaultValue: '7',
+    },
+    {
+      name: 'borderWidth',
+      flag: '--border-width <pixels>',
+      description: 'Grid border width in pixels, 0-15; default 0',
+      exposure: 'advanced',
+      group: 'presentation',
+      reason: 'Useful visual control but secondary to color and tile sizing.',
+      valueType: 'integer',
+      defaultValue: '0',
+    },
+    {
+      name: 'mode',
+      flag: '--mode <brightness|around>',
+      description: 'Documented color calculation mode; default brightness',
+      exposure: 'primary',
+      group: 'filters',
+      reason: 'Primary documented algorithm choice for generated colors.',
+      defaultValue: 'brightness',
+    },
+    {
+      name: 'multi',
+      flag: '--multi <number>',
+      description: 'Brightness mode spacing multiplier, positive with at most one decimal; default 1.5',
+      exposure: 'advanced',
+      group: 'filters',
+      reason: 'Documented brightness-only tuning parameter, advanced because it is mode-specific.',
+      defaultValue: '1.5',
+    },
+    {
+      name: 'steps',
+      flag: '--steps <count>',
+      description: 'Brightness mode color steps, 1-50; default 5',
+      exposure: 'advanced',
+      group: 'filters',
+      reason: 'Documented brightness-only tuning parameter with finite browser/API maximum.',
+      valueType: 'integer',
+      defaultValue: '5',
+    },
+  ],
+  paramsSchema: generateParamsSchema,
+  execute: params => generatePhpNoise(params),
+  normalizeParams: params => generateParamsSchema.parse(params),
+  resultKind: 'phpnoise.generate',
+  defaultFormat: 'text',
+}
+
+export const phpNoiseProvider: PublicApiProviderModule = {
+  manifest: {
+    id: 'phpnoise',
+    name: 'PHP-Noise',
+    description: 'No-auth HTTPS API for generating PNG noise image data URLs.',
+    publicApisCategory: 'Art & Design',
+    homepageUrl: 'https://php-noise.com/',
+    docsUrl: 'https://php-noise.com/noise.php?help',
+    auth: {
+      mode: 'none',
+      notes: ['Official help output documents browser GET parameters without API keys.'],
+    },
+    tags: ['art', 'design', 'noise', 'image', 'base64', 'no-auth'],
+    freePlanNotes: ['Docs provide finite browser/API caps for tiles, tileSize, borderWidth, and steps; no rate limit found.'],
+  },
+  operations: [generateOperation],
+  endpoints: [
+    {
+      id: 'phpnoise-generate',
+      method: 'GET',
+      urlPattern: 'https://php-noise.com/noise.php*',
+      category: 'open-api',
+      evidenceStatus: 'confirmed',
+      description: 'PHP-Noise generator endpoint returning JSON when base64 parameter is present.',
+      siteIds: ['public-apis-tui'],
+      sampleSources: ['https://php-noise.com/noise.php?help', 'https://github.com/RundesBalli/php-noise'],
+      consumedBy: ['phpnoise generate'],
+      notes: ['No authentication required.', 'JSON output requires base64 parameter.', 'Without base64/json data URL output the endpoint returns image/png bytes.'],
+    },
+  ],
+}

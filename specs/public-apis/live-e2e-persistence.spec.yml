@@ -1,0 +1,25 @@
+id: public-apis-live-e2e-persistence
+version: 1
+status: draft
+scope:
+  - live API e2e tests
+  - persistence and offline replay
+  - CI-safe network gating
+
+rules:
+  live_e2e:
+    must:
+      - Every implemented operation MUST have a matching test/live-api coverage path, or an explicit e2e-skip reason recorded in the plan and catalog.
+      - Live e2e tests MUST be gated by PUBLIC_APIS_LIVE_E2E=1 or an equivalent explicit opt-in flag.
+      - Live e2e MUST verify real online JSON shape and readable text output for every operation.
+      - Live e2e MUST assert api.authentication and api.usesBrowserClickstream boundaries.
+  persistence:
+    must:
+      - Every cacheable operation MUST verify online --persist followed by --offline replay with the same query in live e2e or a documented e2e-skip reason.
+      - Offline replay assertions MUST compare the stable provider payload, not only storage metadata.
+      - Operations that are intentionally not cacheable MUST document why in provider notes, plan/catalog notes, or a dedicated skip reason.
+  safety:
+    must:
+      - Live tests MUST NOT require committed secrets.
+      - Keyed providers MUST be local-config-gated and MUST redact secrets from stdout, stderr, cache keys, logs, test fixtures, and plan/catalog notes.
+      - Live tests SHOULD use quota-conscious queries and documented maximum/default limits.

@@ -1,0 +1,25 @@
+{
+  "kind": "gnews.headlines",
+  "totalArticles": 2,
+  "articles": [
+    {
+      "id": "gnews-1",
+      "title": "New climate policy announced",
+      "description": "Officials announced a new climate policy package.",
+      "content": "Officials announced a new climate policy package with implementation milestones.",
+      "url": "https://example.com/climate",
+      "publishedAt": "2026-05-09T04:00:00Z",
+      "language": "en",
+      "source": { "name": "GNews Source", "url": "https://example.com" }
+    },
+    {
+      "id": "gnews-2",
+      "title": "Chipmaker reports stronger demand",
+      "description": "A chipmaker reported stronger demand for accelerators.",
+      "url": "https://example.com/chips",
+      "publishedAt": "2026-05-09T05:00:00Z",
+      "language": "en",
+      "source": { "name": "Tech Wire" }
+    }
+  ]
+}

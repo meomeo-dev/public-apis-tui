@@ -1,0 +1,33 @@
+id: public-apis-provider-contract
+version: 1
+status: draft
+scope:
+  - provider registry contract
+  - operation metadata
+  - endpoint catalog
+  - JSON/RPC contract
+  - no-auth/open-API boundary
+
+rules:
+  provider_manifest:
+    must:
+      - Every provider MUST define a stable manifest id, name, public-apis category, homepage URL, docs URL, auth mode, tags, and free-plan notes when quota/terms are known.
+      - Auth mode MUST reflect the implemented workflow; no-auth backlog providers MUST NOT require API keys, OAuth, cookies, browser sessions, or account preparation.
+      - HTTP-only providers MUST disclose HTTP-only transport in manifest notes and JSON/TUI projection.
+  operation_contract:
+    must:
+      - Every operation MUST define id, providerId, commandPath, rpcMethod, paramsSchema, resultKind, defaultFormat, and execute function.
+      - Every operation option MUST define exposure, group, and reason.
+      - CLI-visible options MUST be curated UX decisions, not a raw dump of every upstream parameter.
+      - Hidden options MUST NOT appear in CLI help; if accepted by RPC/internal paths, they MUST be safe and documented in the provider contract.
+      - Defaults SHOULD use the provider documented maximum page size or result count when one exists; otherwise the CLI MUST set a bounded cap and explain it in metadata.
+  json_result_contract:
+    must:
+      - JSON results MUST include kind and api metadata for every public API operation.
+      - api.authentication MUST be present and accurate.
+      - api.usesBrowserClickstream MUST be false for public API providers.
+      - Query/filter/pagination/count/rate-limit fields MUST be structured JSON fields before any text renderer consumes them.
+  endpoint_catalog:
+    must:
+      - Every operation MUST have matching endpoint catalog records with method, URL pattern, evidence status, sample source, and consumedBy command.
+      - Endpoint records MUST describe no-auth/API-key/HTTP-only caveats without leaking secrets.

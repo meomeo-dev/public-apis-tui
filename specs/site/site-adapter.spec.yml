@@ -1,0 +1,100 @@
+id: public-apis-tui-site-adapter
+version: 1
+status: active
+scope:
+  - public-apis repository as catalog context
+  - Mediastack documented REST API as the first integration
+  - CatFact Ninja documented no-auth REST API as the first no-auth integration
+  - Dog CEO documented no-auth REST API for dog breed metadata and random image URLs
+  - HTTP Dog documented no-auth REST API for HTTP status-code dog image metadata
+  - MeowFacts documented no-auth REST API for random cat facts
+  - RandomDog documented no-auth REST API for random dog media metadata and filename lists
+  - RandomFox documented no-auth REST API for random fox image metadata
+  - NekosBest documented no-auth REST API for anime image and GIF metadata
+  - Studio Ghibli documented no-auth REST API for film metadata
+  - Waifu.im documented no-auth REST API for anime images and tags
+  - Open Library documented no-auth REST API for book search and work metadata
+  - PoetryDB documented no-auth REST API for poem search and random poems
+  - Quran Cloud documented no-auth REST API for ayah and surah retrieval
+  - Quran-api documented no-auth jsDelivr JSON files for Quran translations
+  - Wolne Lektury documented no-auth REST API for public-domain book metadata
+  - CLI text projection for terminal-friendly news browsing
+  - JSON result shapes for RPC and automation
+  - endpoint catalog records for documented open API surfaces
+invariants:
+  - id: open-api-only-start
+    statement: Mediastack commands call documented REST endpoints directly and must not use Chrome clicks, DOM scraping, or real user clickstream data.
+  - id: mediastack-secret-boundary
+    statement: Mediastack access keys are read from MEDIASTACK_API_KEY or explicit local CLI input and must not be committed to source files.
+  - id: mediastack-news-contract
+    statement: The initial news command depends on GET https://api.mediastack.com/v1/news with access_key, pagination, filter, and sort query parameters documented by Mediastack.
+  - id: mediastack-no-original-body-contract
+    statement: Mediastack does not document a full article body endpoint; the CLI may persist returned descriptions and publisher URLs but must not imply it can fetch original article text from Mediastack.
+  - id: catfact-ninja-no-auth-contract
+    statement: CatFact Ninja commands call documented HTTPS JSON endpoints /fact, /facts, and /breeds with no authentication and must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: dogceo-no-auth-contract
+    statement: Dog CEO commands call documented HTTPS JSON endpoints /breeds/list/all, /breeds/image/random, /breed/:breed/images/random, and /breed/:breed/list with no authentication and must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: httpdog-no-auth-contract
+    statement: HTTP Dog commands call documented HTTPS JSON endpoints /:statusCode.json with no authentication and must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: meowfacts-no-auth-contract
+    statement: MeowFacts commands call documented HTTPS JSON endpoint / with count, id, and lang query parameters and no authentication; they must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: randomdog-no-auth-contract
+    statement: RandomDog commands call documented HTTPS JSON endpoints /woof.json and /doggos with no authentication and must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: randomfox-no-auth-contract
+    statement: RandomFox commands call documented HTTPS JSON endpoint /floof/ with no authentication and must not introduce API key, account, browser clickstream, or scraping requirements.
+  - id: animechan-no-auth-contract
+    statement: AnimeChan commands call documented HTTPS JSON endpoint /quotes/random with optional anime or character filters and no authentication for the free tier; they must not introduce supporter x-api-key, account, browser clickstream, or scraping requirements in the no-auth backlog.
+  - id: animenewsnetwork-no-auth-contract
+    statement: AnimeNewsNetwork commands call documented HTTPS XML reports.xml endpoints with no authentication, must disclose provider source/link attribution and rate-limit terms in output metadata, and must not use browser scraping or undocumented detail endpoints when the documented detail API is unavailable.
+  - id: jikan-no-auth-contract
+    statement: Jikan commands call documented HTTPS JSON GET endpoints under https://api.jikan.moe/v4 with no authentication, must expose rate-limit/cache metadata, and must not introduce MyAnimeList authenticated write operations, browser clickstream, or scraping requirements.
+  - id: nekosbest-no-auth-contract
+    statement: NekosBest commands call documented HTTPS JSON GET endpoints under https://nekos.best/api/v2 with no authentication, must send a provider-friendly User-Agent, use documented amount limits, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: studioghibli-no-auth-contract
+    statement: Studio Ghibli commands call documented HTTPS JSON GET endpoints under https://ghibliapi.vercel.app with no authentication, must use documented limit bounds, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: waifuim-no-auth-contract
+    statement: Waifu.im commands call documented HTTPS JSON GET endpoints under https://api.waifu.im with no authentication, must preserve safe SFW defaults unless explicitly changed, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: openlibrary-no-auth-contract
+    statement: Open Library commands call documented HTTPS JSON GET endpoints /search.json and /works/{id}.json with no authentication, must send a provider-friendly User-Agent and bounded fields/limits, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: poetrydb-no-auth-contract
+    statement: PoetryDB commands call documented HTTPS JSON GET routes for field search, poemcount and random poems with no authentication, must keep count/line output bounded for terminal use, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: qurancloud-no-auth-contract
+    statement: Quran Cloud commands call documented HTTPS JSON GET endpoints /v1/ayah/{reference}/{edition} and /v1/surah/{surah}/{edition} with no authentication, must keep surah retrieval bounded with documented offset/limit parameters, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: quranapi-no-auth-contract
+    statement: Quran-api commands call documented jsDelivr HTTPS JSON files under /gh/fawazahmed0/quran-api@1/editions/{edition}/{chapter}[/{verse}].json with no authentication, must keep chapter output bounded, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: wolnelektury-no-auth-contract
+    statement: Wolne Lektury commands call documented HTTPS JSON endpoints /api/books/ and /api/books/{slug}/ with no authentication, must keep catalog output bounded and only surface official metadata/download URLs, and must not introduce API keys, account flows, browser clickstream, or scraping requirements.
+  - id: provider-persistence-contract
+    statement: Public API persistence uses one unified storage root with one subdirectory per provider containing config.json and cache.sqlite.
+  - id: browser-runtime-ownership
+    statement: --cdp-url attaches to an existing browser and must not close the browser process.
+  - id: managed-browser-ownership
+    statement: without --cdp-url the CLI owns the launched browser lifecycle and closes it after the action.
+  - id: selector-contract
+    statement: ready/search/result selectors are adapter contracts and must be documented before relying on them in e2e tests.
+  - id: auth-is-site-scoped
+    statement: session requirements belong to each site config via auth.mode and auth.profileId, never to global CLI state.
+  - id: multi-site-workflow
+    statement: workflows may combine multiple approved sites, such as public docs search followed by prepared-profile internal docs checks.
+  - id: semantic-control-contract
+    statement: drift-prone page controls should be represented as semantic element candidates with labels, roles, visibility, disabled state, and selectors before actions interact with them.
+  - id: guarded-action-contract
+    statement: guarded UI actions should resolve an enabled visible candidate first and surface typed failure evidence instead of blindly using raw selectors.
+  - id: endpoint-catalog-contract
+    statement: documented integration surfaces should be modeled as endpoint catalog records with evidence status before parser or adapter code depends on them.
+  - id: redacted-network-observation
+    statement: generic endpoint observation records redacted URL/method/status metadata only.
+  - id: interface-parity
+    statement: every browser action exposed in CLI must be reachable through JSON-RPC or explicitly documented as CLI-only.
+unsupported_by_default:
+  - account preparation
+  - file transfer workflows
+  - non-metadata network capture
+  - streaming data capture
+  - Chrome clickstream collection for public open APIs
+  - committing API credentials
+notes:
+  - Browser runtime scaffolding remains available from the template, but the Mediastack starting flow is REST-only.
+  - Free Mediastack accounts may receive delayed live news and plan-specific limits from the provider.
+  - CatFact Ninja OpenAPI docs do not publish a maximum limit; provider operations should not invent one.
+  - Public and prepared-profile sites can still coexist in future workflows when explicitly approved.

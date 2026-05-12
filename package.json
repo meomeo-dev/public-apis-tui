@@ -1,0 +1,81 @@
+{
+  "name": "public-apis-cli",
+  "version": "0.6.0",
+  "description": "CLI for exploring documented public-apis integrations.",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meomeo-dev/public-apis-tui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/meomeo-dev/public-apis-tui/issues"
+  },
+  "homepage": "https://github.com/meomeo-dev/public-apis-tui#readme",
+  "bin": {
+    "public-apis": "dist/src/cli.js"
+  },
+  "files": [
+    "dist/src/cli.js",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs/assets/apis-list-hero.png",
+    "docs/assets/news-flash-briefing-txt.png",
+    "docs/assets/news-flash-run-once.png",
+    "docs/assets/ukpolice-street-crimes.png",
+    "experimental/public-apis-news-flash-monitor/README.md",
+    "experimental/public-apis-news-flash-monitor/SKILL.md",
+    "experimental/public-apis-news-flash-monitor/template/*-flash/.gitignore",
+    "experimental/public-apis-news-flash-monitor/template/*-flash/*.mjs",
+    "experimental/public-apis-news-flash-monitor/template/*-flash/*.sh",
+    "experimental/public-apis-news-flash-monitor/template/*-flash/README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:tarball": "tsc --noEmit && node scripts/build-tarball.mjs",
+    "clean": "rm -rf dist coverage",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint .",
+    "pack:tarball": "npm run clean && npm run build:tarball && npm run package:verify && npm pack",
+    "package:verify": "node scripts/package-verify.mjs",
+    "release:preflight": "npm run quality:check && npm run build:tarball && npm run package:verify",
+    "spec:validate": "node scripts/spec-validate.mjs",
+    "start": "node dist/src/cli.js",
+    "test": "NODE_NO_WARNINGS=1 node --import tsx --test test/*.test.ts",
+    "test:contract": "NODE_NO_WARNINGS=1 node --import tsx --test test/contract/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "quality:check": "npm run lint && npm run typecheck && npm run spec:validate && npm run test && npm run test:contract",
+    "test:live-api": "NODE_NO_WARNINGS=1 node --import tsx --test test/live-api/*.test.ts"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "picocolors": "^1.1.1",
+    "puppeteer-core": "^24.29.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/jsdom": "^28.0.1",
+    "@types/node": "^24.10.0",
+    "esbuild": "^0.28.0",
+    "eslint": "^9.39.1",
+    "jsdom": "^29.1.1",
+    "terser": "^5.46.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "yaml": "^2.8.3"
+  },
+  "engines": {
+    "node": ">=24.10"
+  },
+  "license": "MIT"
+}

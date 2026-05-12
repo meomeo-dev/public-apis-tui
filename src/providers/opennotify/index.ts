@@ -1,0 +1,95 @@
+import { z } from 'zod'
+import { getOpenNotifyIssNow, listOpenNotifyAstronauts } from '../../application/usecases/openNotify.js'
+import type { PublicApiProviderModule } from '../providerTypes.js'
+
+const emptyParamsSchema = z.object({})
+
+export const openNotifyProvider: PublicApiProviderModule = {
+  manifest: {
+    id: 'opennotify',
+    name: 'Open Notify',
+    description: 'No-auth legacy HTTP JSON endpoints for people in space and current ISS location.',
+    publicApisCategory: 'Science & Math',
+    homepageUrl: 'http://open-notify.org/Open-Notify-API/',
+    docsUrl: 'http://open-notify.org/Open-Notify-API/',
+    auth: {
+      mode: 'none',
+      notes: ['The exposed astros.json and iss-now.json endpoints are public read-only HTTP JSON endpoints and live probes require no API key.'],
+    },
+    tags: ['science', 'space', 'iss', 'astronauts', 'http-only', 'no-auth'],
+    freePlanNotes: [
+      'Open Notify is legacy HTTP-only; the CLI exposes only non-sensitive public space telemetry.',
+      'The documented iss-pass endpoint returned HTTP 404 HTML in current probes and is intentionally not exposed.',
+    ],
+  },
+  operations: [
+    {
+      id: 'opennotify.astros',
+      providerId: 'opennotify',
+      name: 'People in Space',
+      commandPath: ['opennotify', 'astros'],
+      rpcMethod: 'opennotify.astros',
+      description: 'List current people in space by craft from Open Notify astros.json.',
+      category: 'science',
+      options: [],
+      paramsSchema: emptyParamsSchema,
+      execute: () => listOpenNotifyAstronauts(),
+      normalizeParams: () => ({}),
+      resultKind: 'opennotify.astros',
+      defaultFormat: 'text',
+    },
+    {
+      id: 'opennotify.issNow',
+      providerId: 'opennotify',
+      name: 'ISS Current Location',
+      commandPath: ['opennotify', 'iss-now'],
+      rpcMethod: 'opennotify.issNow',
+      description: 'Fetch current ISS latitude, longitude, and timestamp from Open Notify iss-now.json.',
+      category: 'science',
+      options: [],
+      paramsSchema: emptyParamsSchema,
+      execute: () => getOpenNotifyIssNow(),
+      normalizeParams: () => ({}),
+      resultKind: 'opennotify.issNow',
+      defaultFormat: 'text',
+    },
+  ],
+  endpoints: [
+    {
+      id: 'opennotify-docs',
+      method: 'GET',
+      urlPattern: 'http://open-notify.org/Open-Notify-API/*',
+      category: 'public-apis:science',
+      evidenceStatus: 'confirmed',
+      description: 'Open Notify API documentation pages hosted as HTTP HTML.',
+      observedOn: '2026-05-09',
+      sampleSources: ['http://open-notify.org/Open-Notify-API/', 'http://open-notify.org/Open-Notify-API/People-In-Space/', 'http://open-notify.org/Open-Notify-API/ISS-Location-Now/'],
+      consumedBy: [],
+      notes: ['Docs are HTTP-only but public; HTTPS certificate validation failed in current probes.'],
+    },
+    {
+      id: 'opennotify-astros',
+      method: 'GET',
+      urlPattern: 'http://api.open-notify.org/astros.json',
+      category: 'public-apis:science',
+      evidenceStatus: 'confirmed',
+      description: 'Current people in space JSON endpoint.',
+      observedOn: '2026-05-09',
+      sampleSources: ['http://api.open-notify.org/astros.json'],
+      consumedBy: ['public-apis apis run opennotify.astros'],
+      notes: ['No API key observed; response returns application/json with CORS wildcard over HTTP.'],
+    },
+    {
+      id: 'opennotify-iss-now',
+      method: 'GET',
+      urlPattern: 'http://api.open-notify.org/iss-now.json',
+      category: 'public-apis:science',
+      evidenceStatus: 'confirmed',
+      description: 'Current International Space Station position JSON endpoint.',
+      observedOn: '2026-05-09',
+      sampleSources: ['http://api.open-notify.org/iss-now.json'],
+      consumedBy: ['public-apis apis run opennotify.iss-now'],
+      notes: ['No API key observed; response returns application/json with CORS wildcard over HTTP.'],
+    },
+  ],
+}

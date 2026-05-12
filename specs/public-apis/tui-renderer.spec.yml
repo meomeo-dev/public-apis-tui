@@ -1,0 +1,27 @@
+id: public-apis-tui-renderer
+version: 1
+status: draft
+scope:
+  - public API readable text output
+  - JSON-to-text projection
+  - CLI UX consistency
+
+rules:
+  renderer_boundary:
+    must:
+      - Text renderers MUST consume only JSON result objects and MUST NOT call network clients, usecases, persistence, or provider registries.
+      - --format json stdout MUST remain parseable JSON without ANSI, prompts, progress, or text prefixes.
+      - Default operation output SHOULD be readable text unless an explicit compatibility exception is documented.
+  required_text_blocks:
+    must:
+      - Every public API text renderer MUST show operation/provider identity and endpoint.
+      - Every renderer MUST show storage mode, persistence status, open REST/API boundary, auth boundary, and no Chrome clickstream boundary.
+      - Every renderer MUST show query/filter summary.
+      - Every renderer MUST show count/pagination/rate-limit/transport metadata when present in JSON.
+      - Every renderer MUST show a clear empty state when the result list is empty.
+      - Every renderer SHOULD include a next command or remediation hint when useful.
+  consistency:
+    should:
+      - Renderers SHOULD avoid alignment-sensitive tables until display-width-aware measurement is implemented.
+      - Renderers SHOULD cap long lists and tell users to use --format json for full output.
+      - HTTP-only APIs SHOULD visibly disclose HTTP-only transport in text output.

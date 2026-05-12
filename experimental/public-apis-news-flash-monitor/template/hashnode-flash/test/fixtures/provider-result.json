@@ -1,0 +1,27 @@
+{
+  "kind": "hashnode.posts",
+  "publication": { "title": "Engineering Blog", "url": "https://engineering.example.com" },
+  "pagination": { "returned": 2, "first": 2, "hasNextPage": true, "endCursor": "cursor" },
+  "posts": [
+    {
+      "id": "post-1",
+      "title": "Building reliable event pipelines",
+      "url": "https://engineering.example.com/events",
+      "brief": "A practical guide to reliable event pipelines.",
+      "publishedAt": "2026-05-08T10:00:00Z",
+      "readTimeInMinutes": 6,
+      "author": { "name": "Dev Writer" },
+      "tags": [{ "name": "Engineering" }, { "name": "Events" }]
+    },
+    {
+      "id": "post-2",
+      "title": "API observability basics",
+      "url": "https://engineering.example.com/api-observability",
+      "brief": "How to observe API health with small monitors.",
+      "publishedAt": "2026-05-08T11:00:00Z",
+      "readTimeInMinutes": 4,
+      "author": { "name": "Ops Writer" },
+      "tags": [{ "name": "API" }]
+    }
+  ]
+}

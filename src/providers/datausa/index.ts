@@ -1,0 +1,186 @@
+import { z } from 'zod'
+import { getDataUsaPopulation, listDataUsaGeographies } from '../../application/usecases/dataUsa.js'
+import {
+  DATA_USA_DEFAULT_DRILLDOWN,
+  DATA_USA_DEFAULT_GEOGRAPHY_LEVEL,
+  DATA_USA_DEFAULT_LIMIT,
+  DATA_USA_DEFAULT_YEAR,
+  DATA_USA_MAX_LIMIT,
+  normalizeDataUsaGeographiesInput,
+  normalizeDataUsaPopulationInput,
+  type DataUsaGeographiesInput,
+  type DataUsaPopulationInput,
+} from '../../infrastructure/openApis/dataUsaClient.js'
+import type { PublicApiOperationDefinition, PublicApiProviderModule } from '../providerTypes.js'
+
+const populationParamsSchema = z.object({
+  drilldown: z.string().optional(),
+  year: z.union([z.string(), z.number()]).optional(),
+  geographyId: z.string().optional(),
+  limit: z.coerce.number().optional(),
+  offset: z.coerce.number().optional(),
+}) satisfies z.ZodType<DataUsaPopulationInput>
+
+const geographiesParamsSchema = z.object({
+  level: z.string().optional(),
+  query: z.string().optional(),
+  limit: z.coerce.number().optional(),
+}) satisfies z.ZodType<DataUsaGeographiesInput>
+
+const populationOperation: PublicApiOperationDefinition<DataUsaPopulationInput> = {
+  id: 'datausa.population',
+  providerId: 'datausa',
+  name: 'Population',
+  commandPath: ['datausa', 'population'],
+  rpcMethod: 'datausa.population',
+  description: 'Read Data USA ACS total population rows for nation or state drilldowns.',
+  category: 'government',
+  options: [
+    {
+      name: 'drilldown',
+      flag: '--drilldown <Nation|State>',
+      description: `Geography drilldown, default ${DATA_USA_DEFAULT_DRILLDOWN}`,
+      exposure: 'primary',
+      group: 'query',
+      reason: 'Population rows are most useful when grouped by nation or state in terminal output.',
+      defaultValue: DATA_USA_DEFAULT_DRILLDOWN,
+    },
+    {
+      name: 'year',
+      flag: '--year <latest|YYYY>',
+      description: `ACS year, default ${DATA_USA_DEFAULT_YEAR}`,
+      exposure: 'primary',
+      group: 'filters',
+      reason: 'Year selection is the core analytical filter; latest conserves requests by avoiding discovery calls.',
+      defaultValue: DATA_USA_DEFAULT_YEAR,
+    },
+    {
+      name: 'geographyId',
+      flag: '--geography-id <id>',
+      description: 'Optional Data USA geography id such as 04000US06',
+      exposure: 'primary',
+      group: 'filters',
+      reason: 'Filtering to a geography supports focused business/demographic lookups without dumping all rows.',
+    },
+    {
+      name: 'limit',
+      flag: '--limit <count>',
+      description: `Rows to request, default/cap ${DATA_USA_DEFAULT_LIMIT}`,
+      exposure: 'primary',
+      group: 'pagination',
+      reason: 'The documented API supports limit/offset; 100 covers the finite state result set while bounding output/cache.',
+      valueType: 'integer',
+      defaultValue: String(DATA_USA_DEFAULT_LIMIT),
+    },
+    {
+      name: 'offset',
+      flag: '--offset <count>',
+      description: 'Pagination offset, default 0',
+      exposure: 'advanced',
+      group: 'pagination',
+      reason: 'Offset is only needed when a future drilldown/page exceeds the default bounded page size.',
+      valueType: 'integer',
+      defaultValue: '0',
+    },
+  ],
+  paramsSchema: populationParamsSchema,
+  execute: params => getDataUsaPopulation(params),
+  normalizeParams: params => populationParamsSchema.parse(params),
+  createCacheKeyParams: params => normalizeDataUsaPopulationInput(params),
+  resultKind: 'datausa.population',
+  defaultFormat: 'text',
+}
+
+const geographiesOperation: PublicApiOperationDefinition<DataUsaGeographiesInput> = {
+  id: 'datausa.geographies',
+  providerId: 'datausa',
+  name: 'Geographies',
+  commandPath: ['datausa', 'geographies'],
+  rpcMethod: 'datausa.geographies',
+  description: 'List Data USA geography members used by population queries.',
+  category: 'government',
+  options: [
+    {
+      name: 'level',
+      flag: '--level <Nation|State>',
+      description: `Geography level, default ${DATA_USA_DEFAULT_GEOGRAPHY_LEVEL}`,
+      exposure: 'primary',
+      group: 'query',
+      reason: 'Member lookup is scoped to the same curated geography levels exposed by population queries.',
+      defaultValue: DATA_USA_DEFAULT_GEOGRAPHY_LEVEL,
+    },
+    {
+      name: 'query',
+      flag: '--query <text>',
+      description: 'Filter returned members by id or name',
+      exposure: 'primary',
+      group: 'filters',
+      reason: 'Client-side filtering makes geography discovery usable in terminal output.',
+    },
+    {
+      name: 'limit',
+      flag: '--limit <count>',
+      description: `Members to show, default/cap ${DATA_USA_DEFAULT_LIMIT}`,
+      exposure: 'primary',
+      group: 'pagination',
+      reason: 'State/nation member lists fit within 100 while keeping future levels bounded.',
+      valueType: 'integer',
+      defaultValue: String(DATA_USA_DEFAULT_LIMIT),
+    },
+  ],
+  paramsSchema: geographiesParamsSchema,
+  execute: params => listDataUsaGeographies(params),
+  normalizeParams: params => geographiesParamsSchema.parse(params),
+  createCacheKeyParams: params => normalizeDataUsaGeographiesInput(params),
+  resultKind: 'datausa.geographies',
+  defaultFormat: 'text',
+}
+
+export const dataUsaProvider: PublicApiProviderModule = {
+  manifest: {
+    id: 'datausa',
+    name: 'Data USA',
+    description: 'No-auth public US demographic and geography data from Data USA.',
+    publicApisCategory: 'Government',
+    homepageUrl: 'https://datausa.io/about/api/',
+    docsUrl: 'https://datausa.io/about/api/',
+    auth: {
+      mode: 'none',
+      notes: ['No API key, OAuth, cookies, browser session, or account setup required for the implemented HTTPS JSON endpoints.'],
+    },
+    tags: ['government', 'demographics', 'population', 'census', 'no-auth', 'json'],
+    freePlanNotes: [
+      'Data USA API docs and live probes expose HTTPS JSON endpoints without authentication.',
+      `CLI defaults/caps at ${DATA_USA_MAX_LIMIT} rows/members to cover nation/state use cases and bound output.`,
+    ],
+  },
+  operations: [populationOperation, geographiesOperation],
+  endpoints: [
+    {
+      id: 'datausa-tesseract-data-jsonrecords',
+      method: 'GET',
+      urlPattern: 'https://api.datausa.io/tesseract/data.jsonrecords*',
+      category: 'open-api',
+      evidenceStatus: 'confirmed',
+      description: 'Data USA Tesseract JSON records endpoint for ACS population rows.',
+      siteIds: ['public-apis-tui'],
+      observedOn: '2026-05-04',
+      sampleSources: ['https://datausa.io/about/api/', 'https://api.datausa.io/tesseract/data.jsonrecords?cube=acs_yg_total_population_5&drilldowns=State,Year&measures=Population&time=Year.latest&limit=100,0'],
+      consumedBy: ['datausa population'],
+      notes: ['No API key required.', 'Uses official HTTPS JSON API, not browser clickstream.'],
+    },
+    {
+      id: 'datausa-tesseract-members',
+      method: 'GET',
+      urlPattern: 'https://api.datausa.io/tesseract/members*',
+      category: 'open-api',
+      evidenceStatus: 'confirmed',
+      description: 'Data USA Tesseract geography members endpoint.',
+      siteIds: ['public-apis-tui'],
+      observedOn: '2026-05-04',
+      sampleSources: ['https://datausa.io/about/api/', 'https://api.datausa.io/tesseract/members?cube=acs_yg_total_population_5&level=State'],
+      consumedBy: ['datausa geographies'],
+      notes: ['No API key required.', 'Used to discover geography ids for population queries.'],
+    },
+  ],
+}

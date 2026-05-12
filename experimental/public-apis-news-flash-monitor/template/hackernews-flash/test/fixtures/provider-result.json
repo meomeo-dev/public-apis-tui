@@ -1,0 +1,27 @@
+{
+  "kind": "hackernews.stories",
+  "api": { "fanoutLimit": 2, "upstreamListSize": 500 },
+  "query": { "list": "top", "limit": 2 },
+  "ids": [101, 102],
+  "stories": [
+    {
+      "id": 101,
+      "type": "story",
+      "by": "alice",
+      "time": 1778300000,
+      "url": "https://example.com/hn-1",
+      "score": 120,
+      "title": "Useful database internals guide",
+      "descendants": 35
+    },
+    {
+      "id": 102,
+      "type": "story",
+      "by": "bob",
+      "time": 1778300300,
+      "score": 80,
+      "title": "Ask HN: How do you monitor APIs?",
+      "descendants": 24
+    }
+  ]
+}
