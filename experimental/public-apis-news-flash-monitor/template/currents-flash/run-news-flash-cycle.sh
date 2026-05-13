@@ -6,6 +6,8 @@ DATA_DIR="$ROOT/data"
 SUMMARY_DIR="$ROOT/summary"
 CYCLES="${CYCLES:-2}"
 INTERVAL_SECONDS="${INTERVAL_SECONDS:-30}"
+NEWS_FLASH_RUN_ID="${NEWS_FLASH_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+export NEWS_FLASH_RUN_ID
 JSONL_PATH=""
 
 for i in $(seq 1 "$CYCLES"); do
@@ -14,9 +16,9 @@ for i in $(seq 1 "$CYCLES"); do
   echo "$output"
   JSONL_PATH="$(
     node -e '
-const fs = require("fs")
-const result = JSON.parse(fs.readFileSync(0, "utf8"))
-console.log(result.jsonlPath)
+      const fs = require("fs");
+      const output = JSON.parse(fs.readFileSync(0, "utf8"));
+      console.log(output.jsonlPath);
     ' <<< "$output"
   )"
   if [ "$i" != "$CYCLES" ]; then
@@ -25,8 +27,7 @@ console.log(result.jsonlPath)
 done
 
 echo "== summarize news flash with agent runner =="
-node \
-  "$ROOT/summarize-news-flash-with-claude.mjs" \
+node "$ROOT/summarize-news-flash-with-claude.mjs" \
   "$JSONL_PATH" \
   "$SUMMARY_DIR/news-flash.json"
 echo "== final news flash =="

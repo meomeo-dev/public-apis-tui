@@ -1,4 +1,4 @@
-import { access, mkdir, stat, unlink, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
@@ -132,6 +132,9 @@ export type NewsFlashMonitorStatus = {
   plistPath: string
   installed: boolean
   loaded: boolean
+  statusSource: 'installed-plist' | 'repo-root'
+  installedWorkingDirectory?: string | undefined
+  installedRepoRoot?: string | undefined
   latestSummaryPath: string
   latestSummaryExists: boolean
   latestSummaryModifiedAt?: string | undefined
@@ -171,8 +174,17 @@ export type NewsFlashSmokeRunResult = {
   command: string[]
   exitCode: number | null
   durationMs: number
+  validation?: NewsFlashSmokeValidationResult | undefined
   stdoutTail: string
   stderrTail: string
+}
+
+export type NewsFlashSmokeValidationResult = {
+  ok: boolean
+  detail: string
+  recordOk?: boolean | undefined
+  itemCount?: number | undefined
+  error?: string | undefined
 }
 
 type CommandCheck = {
@@ -1167,9 +1179,14 @@ export async function getNewsFlashStatus(options: NewsFlashStatusOptions): Promi
   return {
     kind: 'experimental.newsFlash.status',
     monitors: await Promise.all(providers.map(async provider => {
-      const templateDir = resolveProviderTemplateDir(options.repoRoot, provider)
       const label = normalizeLabel(options.label, provider)
       const plistPath = resolveLaunchAgentPath(label)
+      const installed = await canAccess(plistPath, constants.R_OK)
+      const installedPlist = installed
+        ? parseLaunchAgentPlist(await readOptionalText(plistPath))
+        : undefined
+      const templateDir = installedPlist?.workingDirectory ??
+        resolveProviderTemplateDir(options.repoRoot, provider)
       const latestSummaryPath = resolve(templateDir, 'summary/news-flash.txt')
       const latestSummaryStat = await readOptionalStat(latestSummaryPath)
       return {
@@ -1177,8 +1194,11 @@ export async function getNewsFlashStatus(options: NewsFlashStatusOptions): Promi
         label,
         templateDir,
         plistPath,
-        installed: await canAccess(plistPath, constants.R_OK),
+        installed,
         loaded: await isLaunchAgentLoaded(label),
+        statusSource: installedPlist === undefined ? 'repo-root' : 'installed-plist',
+        installedWorkingDirectory: installedPlist?.workingDirectory,
+        installedRepoRoot: installedPlist?.repoRoot,
         latestSummaryPath,
         latestSummaryExists: latestSummaryStat !== undefined,
         latestSummaryModifiedAt: latestSummaryStat?.mtime.toISOString(),
@@ -1555,11 +1575,13 @@ async function runSmokeTest(
     cwd: templateDir,
     timeoutMs,
   })
+  const validation = validateNewsFlashSmokeOutput(result.stdout)
   return {
-    ok: result.exitCode === 0,
+    ok: result.exitCode === 0 && validation.ok,
     command: [command, ...args],
     exitCode: result.exitCode,
     durationMs: Date.now() - started,
+    validation,
     stdoutTail: tail(result.stdout, 2000),
     stderrTail: tail(result.stderr, 2000),
   }
@@ -1772,6 +1794,14 @@ async function readOptionalStat(path: string): Promise<Awaited<ReturnType<typeof
   }
 }
 
+async function readOptionalText(path: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, 'utf8')
+  } catch {
+    return undefined
+  }
+}
+
 async function unlinkIfExists(path: string): Promise<boolean> {
   try {
     await unlink(path)
@@ -1927,11 +1957,132 @@ function createCodexEnvKeyCheckCommand(profile: string): string {
 }
 
 function escapePlist(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
 }
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+type InstalledLaunchAgentInfo = {
+  workingDirectory?: string | undefined
+  repoRoot?: string | undefined
+}
+
+function parseLaunchAgentPlist(
+  text: string | undefined,
+): InstalledLaunchAgentInfo | undefined {
+  if (text === undefined) return undefined
+  const workingDirectory = readPlistStringValue(text, 'WorkingDirectory')
+  const repoRoot = readPlistEnvStringValue(text, publicApisCliRepoEnv) ??
+    readPlistEnvStringValue(text, publicApisTuiRepoEnv)
+  if (workingDirectory === undefined && repoRoot === undefined) return undefined
+  return { workingDirectory, repoRoot }
+}
+
+function readPlistStringValue(text: string, key: string): string | undefined {
+  const pattern = new RegExp(
+    `<key>${escapeRegExp(key)}</key>\\s*<string>([\\s\\S]*?)</string>`,
+    'u',
+  )
+  const value = pattern.exec(text)?.[1]
+  return value === undefined ? undefined : unescapePlist(value)
+}
+
+function readPlistEnvStringValue(text: string, key: string): string | undefined {
+  const envBlock = /<key>EnvironmentVariables<\/key>\s*<dict>([\s\S]*?)<\/dict>/u
+    .exec(text)?.[1]
+  return envBlock === undefined ? undefined : readPlistStringValue(envBlock, key)
+}
+
+function unescapePlist(value: string): string {
+  return value
+    .replaceAll('&apos;', "'")
+    .replaceAll('&quot;', '"')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&amp;', '&')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
+export function validateNewsFlashSmokeOutput(
+  stdout: string,
+): NewsFlashSmokeValidationResult {
+  const collector = readLastCollectorOutput(stdout)
+  if (collector === undefined) {
+    return {
+      ok: false,
+      detail: 'smoke run did not print collector output',
+    }
+  }
+  if (!isRecord(collector)) {
+    return {
+      ok: false,
+      detail: 'collector output was not an object',
+    }
+  }
+  const record = isRecord(collector.record) ? collector.record : undefined
+  if (record === undefined) {
+    return {
+      ok: false,
+      detail: 'collector output did not include a record object',
+    }
+  }
+  const recordOk = record.ok === true
+  const itemCount = typeof record.item_count === 'number'
+    ? record.item_count
+    : undefined
+  const error = typeof record.error === 'string' ? record.error : undefined
+  if (!recordOk) {
+    return {
+      ok: false,
+      detail: error === undefined || error.trim() === ''
+        ? 'collector record ok=false'
+        : `collector record ok=false: ${error}`,
+      recordOk,
+      itemCount,
+      error,
+    }
+  }
+  if (itemCount === undefined || itemCount <= 0) {
+    return {
+      ok: false,
+      detail: `collector record item_count=${itemCount ?? 'missing'}`,
+      recordOk,
+      itemCount,
+      error,
+    }
+  }
+  return {
+    ok: true,
+    detail: `collector record ok=true item_count=${itemCount}`,
+    recordOk,
+    itemCount,
+  }
+}
+
+function readLastCollectorOutput(stdout: string): unknown {
+  let last: unknown
+  for (const match of stdout.matchAll(/\{\s*"jsonlPath"[\s\S]*?\n\}/gu)) {
+    try {
+      last = JSON.parse(match[0])
+    } catch {
+      continue
+    }
+  }
+  return last
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function normalizeProviderEnv(providerEnv: Record<string, string> | undefined, provider: NewsFlashProvider): Record<string, string> {

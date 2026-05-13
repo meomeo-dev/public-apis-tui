@@ -173,12 +173,95 @@ public-apis experimental news-flash install --provider spaceflightnews \
   --interval-minutes 30
 ```
 
-The default agent runner is `claude_code`. Use `--agent-cli-runner codex`
-with `--codex-profile <profile>` to run Codex instead. Runner credentials can
-come from shell startup files, `--agent-env NAME=value`, or
-`--agent-env-file <path>`. The monitor bridges Claude `ANTHROPIC_*` settings
-and Codex `model_providers.*.env_key` names from `CODEX_CONFIG_FILE`,
-`CODEX_HOME/config.toml`, or `~/.codex/config.toml`.
+### API Key Registration Sites
+
+These news-flash providers require API keys. Register on the provider site,
+then put only the matching variable in `.env`.
+
+- Currents (`CURRENTS_API_KEY`):
+  <https://currentsapi.services/en/register>
+- GNews (`GNEWS_API_KEY`):
+  <https://gnews.io/register>
+- The Guardian (`GUARDIAN_API_KEY`):
+  <https://open-platform.theguardian.com/access>
+- MarketAux (`MARKETAUX_API_KEY`):
+  <https://www.marketaux.com/register>
+- Mediastack (`MEDIASTACK_API_KEY`):
+  <https://mediastack.com/signup>
+- NewsAPI (`NEWSAPI_API_KEY`):
+  <https://newsapi.org/register>
+- NewsData.io (`NEWSDATAIO_API_KEY`):
+  <https://newsdata.io/register>
+- New York Times (`NYTIMES_API_KEY`):
+  <https://developer.nytimes.com/get-started>
+- TheNewsAPI (`THENEWSAPI_API_KEY`):
+  <https://www.thenewsapi.com/register>
+
+### AI Setup Prompt
+
+Copy this prompt to an AI assistant when you want it to install and configure
+a quota-conscious news-flash setup:
+
+```
+Install `public-apis-cli` globally with `npm install -g public-apis-cli`,
+then configure the experimental `news-flash` providers. Before changing
+anything, ask me these setup questions and wait for my answers:
+1. should news-flash use Claude Code (`claude_code`, the default) or Codex
+   (`codex`) as the agent CLI runner?
+2. if I choose Codex, which `--codex-profile <profile>` should it use?
+3. do I need custom runner credentials or model settings? If yes, ask whether
+   to pass them with repeated `--agent-env NAME=value` options or a separate
+   `--agent-env-file <path>`.
+
+Use `.env` only for news source API keys. If `.env` is missing, prefer copying
+`.env.example` to `.env`, ask me to fill in available keys, then configure
+only no-auth providers and providers whose API keys I supplied. Do not read,
+print, or expose secret values.
+
+I want fresh news focused on finance, AI, software, hard tech, and
+entertainment/consumer trends. Choose providers, query parameters, result
+limits, and polling intervals by each source's strengths. When a provider has
+a limit-like option, use the largest value the provider allows by default, but
+cap it at 30. Free-tier quotas are limited, so use low-frequency, staggered
+calls.
+
+News source API key names for `.env`:
+CURRENTS_API_KEY=
+GNEWS_API_KEY=
+GUARDIAN_API_KEY=
+MARKETAUX_API_KEY=
+MEDIASTACK_API_KEY=
+NEWSAPI_API_KEY=
+NEWSDATAIO_API_KEY=
+NYTIMES_API_KEY=
+THENEWSAPI_API_KEY=
+
+Use `--agent-cli-runner claude_code` for Claude Code, or
+`--agent-cli-runner codex --codex-profile <profile>` for Codex. Runner
+credentials can come from shell startup files, `--agent-env NAME=value`, or
+`--agent-env-file <path>`. Do not invent additional bridge variable names.
+
+Current bridge-supported runner variables:
+- common: `AGENT_CLI_RUNNER`, `AGENT_ENV_FILE`,
+  `AGENT_CLI_RUNNER_ENV_FILE`, `AGENT_TIMEOUT_MS`.
+- Claude Code and LiteLLM: `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`,
+  `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_OPUS_MODEL`,
+  `ANTHROPIC_DEFAULT_SONNET_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`,
+  `ANTHROPIC_CUSTOM_MODEL_OPTION`, `ANTHROPIC_CUSTOM_MODEL_OPTION_NAME`,
+  `ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION`, `LITELLM_MASTER_KEY`,
+  `LITELLM_API_KEY`, `LITELLM_BASE_URL`, `LITELLM_API_BASE`,
+  `CLAUDE_BIN`, `CLAUDE_TIMEOUT_MS`, `CLAUDE_MAX_ATTEMPTS`,
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`,
+  `CLAUDE_CODE_ENABLE_TELEMETRY`, `CLAUDE_CODE_SUBAGENT_MODEL`,
+  `DISABLE_TELEMETRY`, `DISABLE_AUTOUPDATER`,
+  `CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL`, `ENABLE_EXPERIMENTAL_MCP_CLI`.
+- Codex: `CODEX_BIN`, `CODEX_CONFIG_FILE`, `CODEX_HOME`,
+  `CODEX_PROFILE`, `CODEX_TIMEOUT_MS`, plus environment variable names
+  declared by `model_providers.*.env_key` in the selected Codex config.
+- schedule and source parameters: `CYCLES`, `INTERVAL_SECONDS`, the news
+  source API key names listed above, and provider option env names shown by
+  `public-apis experimental news-flash providers --format json`.
+```
 
 Use `PUBLIC_APIS_CLI_REPO=/path/to/public-apis-cli` when a template needs an
 explicit repository or package root. The legacy `PUBLIC_APIS_TUI_REPO` variable

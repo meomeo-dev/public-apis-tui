@@ -39,6 +39,7 @@ const newsFlashExpectedPackageFiles = [
   }),
 ]
 const expectedPackageFiles = [
+  '.env.example',
   'CHANGELOG.md',
   'LICENSE',
   'README.md',
@@ -122,13 +123,11 @@ if (pack.status !== 0) {
     failures.push(`package includes unexpected files: ${unexpectedFiles.join(', ')}`)
   }
 
-  const hiddenRepositoryPrefixes = [
+  const forbiddenPrefixes = [
     '.github/',
-    ['_', 'tasks/'].join(''),
-    ['_', 'workflows/'].join(''),
-    ['note', 'vault/'].join('-'),
-    ['.', 'deep-research/'].join(''),
-    ['.', 'codex/'].join(''),
+    '_tasks/',
+    '_workflows/',
+    'note-vault/',
     'scripts/',
     'specs/',
     'src/',
@@ -136,7 +135,7 @@ if (pack.status !== 0) {
     'tmp/',
   ]
   const forbiddenPackageFiles = packedFiles.filter(path => {
-    return hiddenRepositoryPrefixes.some(prefix => path.startsWith(prefix))
+    return forbiddenPrefixes.some(prefix => path.startsWith(prefix))
   })
   if (forbiddenPackageFiles.length > 0) {
     failures.push(

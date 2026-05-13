@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.1 - 2026-05-13
+
+- Harden news-flash runtime templates for global npm installs by resolving the
+  packaged `public-apis` CLI before falling back to source development commands.
+- Make installer smoke checks fail when the collector records a failed run or
+  returns no collected items.
+- Isolate each news-flash run window with a run id so same-day summaries do not
+  mix old provider settings, failed records, and current results.
+- Improve news-flash status reporting by reading installed LaunchAgent working
+  directory and repo environment values when available.
+
 ## 0.7.0 - 2026-05-13
 
 - Add news-flash templates for Chronicling America, Currents, The Guardian,

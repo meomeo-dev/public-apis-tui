@@ -1,6 +1,6 @@
 {
   "name": "public-apis-cli",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "CLI for exploring documented public-apis integrations.",
   "type": "module",
   "private": false,
@@ -24,6 +24,7 @@
     "README.zh-CN.md",
     "CHANGELOG.md",
     "LICENSE",
+    ".env.example",
     "docs/assets/apis-list-hero.png",
     "docs/assets/news-flash-briefing-txt.png",
     "docs/assets/news-flash-run-once.png",

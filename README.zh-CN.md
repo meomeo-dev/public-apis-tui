@@ -173,13 +173,92 @@ public-apis experimental news-flash install --provider spaceflightnews \
   --interval-minutes 30
 ```
 
-默认 runner 是 `claude_code`。要切到 Codex，使用
-`--agent-cli-runner codex` 和 `--codex-profile <profile>`。Runner
-凭据可以来自 shell startup files、`--agent-env NAME=value`，或
-`--agent-env-file <path>`。Monitor 会桥接（bridge）Claude 的
-`ANTHROPIC_*` 设置，也会从 `CODEX_CONFIG_FILE`、`CODEX_HOME/config.toml`
-或 `~/.codex/config.toml` 读取 Codex `model_providers.*.env_key`
-声明的环境变量名。
+### API Key 注册网站
+
+这些 news-flash provider 需要 API Key。请在对应网站注册，然后只把对应
+变量写入 `.env`。
+
+- Currents (`CURRENTS_API_KEY`):
+  <https://currentsapi.services/en/register>
+- GNews (`GNEWS_API_KEY`):
+  <https://gnews.io/register>
+- The Guardian (`GUARDIAN_API_KEY`):
+  <https://open-platform.theguardian.com/access>
+- MarketAux (`MARKETAUX_API_KEY`):
+  <https://www.marketaux.com/register>
+- Mediastack (`MEDIASTACK_API_KEY`):
+  <https://mediastack.com/signup>
+- NewsAPI (`NEWSAPI_API_KEY`):
+  <https://newsapi.org/register>
+- NewsData.io (`NEWSDATAIO_API_KEY`):
+  <https://newsdata.io/register>
+- New York Times (`NYTIMES_API_KEY`):
+  <https://developer.nytimes.com/get-started>
+- TheNewsAPI (`THENEWSAPI_API_KEY`):
+  <https://www.thenewsapi.com/register>
+
+### AI 安装提示词
+
+需要让 AI 代为安装和配置省额度的新闻快报时，可以复制这句提示词：
+
+```
+请使用 `npm install -g public-apis-cli` 将 `public-apis-cli`
+安装为全局工具，然后配置实验性 `news-flash` providers。开始修改前，
+请先问我这些配置问题，并等待我的回答：
+1. news-flash 要使用 Claude Code（`claude_code`，默认）还是 Codex
+   （`codex`）作为 agent CLI runner？
+2. 如果选择 Codex，应该使用哪个 `--codex-profile <profile>`？
+3. 是否需要自定义 runner 凭据或模型环境？如果需要，请继续问我是通过
+   重复的 `--agent-env NAME=value` 传入，还是通过单独的
+   `--agent-env-file <path>` 传入。
+
+`.env` 只用于新闻源 API Key。如果当前目录缺少 `.env`，优先复制
+`.env.example` 为 `.env`，要求我填入可用密钥，然后只配置无需认证的
+provider 和我已提供 API Key 的 provider。不要读取、打印或泄露密钥值。
+
+我需要尽量新的新闻，重点关注金融、AI、软件、硬科技和娱乐消费。请按各
+新闻源特点选择 provider、查询参数、结果数量和调用频率。遇到 limit、
+page-size、max、first、count 这类数量参数时，默认取 provider 允许的
+最大值，但上限不超过 30。免费账号额度有限，请低频、错峰调用。
+
+`.env` 可使用的新闻源 API Key 变量名：
+CURRENTS_API_KEY=
+GNEWS_API_KEY=
+GUARDIAN_API_KEY=
+MARKETAUX_API_KEY=
+MEDIASTACK_API_KEY=
+NEWSAPI_API_KEY=
+NEWSDATAIO_API_KEY=
+NYTIMES_API_KEY=
+THENEWSAPI_API_KEY=
+
+Claude Code 使用 `--agent-cli-runner claude_code`；Codex 使用
+`--agent-cli-runner codex --codex-profile <profile>`。Runner 凭据可以来自
+shell startup files、`--agent-env NAME=value`，或
+`--agent-env-file <path>`。不要自行编造额外的 bridge 环境变量名。
+
+当前 bridge 支持的 runner 变量：
+- 通用：`AGENT_CLI_RUNNER`、`AGENT_ENV_FILE`、
+  `AGENT_CLI_RUNNER_ENV_FILE`、`AGENT_TIMEOUT_MS`。
+- Claude Code 和 LiteLLM：`ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、
+  `ANTHROPIC_MODEL`、`ANTHROPIC_DEFAULT_OPUS_MODEL`、
+  `ANTHROPIC_DEFAULT_SONNET_MODEL`、`ANTHROPIC_DEFAULT_HAIKU_MODEL`、
+  `ANTHROPIC_CUSTOM_MODEL_OPTION`、`ANTHROPIC_CUSTOM_MODEL_OPTION_NAME`、
+  `ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION`、`LITELLM_MASTER_KEY`、
+  `LITELLM_API_KEY`、`LITELLM_BASE_URL`、`LITELLM_API_BASE`、
+  `CLAUDE_BIN`、`CLAUDE_TIMEOUT_MS`、`CLAUDE_MAX_ATTEMPTS`、
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`、
+  `CLAUDE_CODE_ENABLE_TELEMETRY`、`CLAUDE_CODE_SUBAGENT_MODEL`、
+  `DISABLE_TELEMETRY`、`DISABLE_AUTOUPDATER`、
+  `CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL`、`ENABLE_EXPERIMENTAL_MCP_CLI`。
+- Codex：`CODEX_BIN`、`CODEX_CONFIG_FILE`、`CODEX_HOME`、
+  `CODEX_PROFILE`、`CODEX_TIMEOUT_MS`，以及所选 Codex config 中
+  `model_providers.*.env_key` 声明的环境变量名。
+- 调度和新闻源参数：`CYCLES`、`INTERVAL_SECONDS`、上方列出的新闻源
+  API Key 变量名，以及
+  `public-apis experimental news-flash providers --format json`
+  输出的 provider option env 名称。
+```
 
 模板需要显式仓库或包根目录时，使用
 `PUBLIC_APIS_CLI_REPO=/path/to/public-apis-cli`。旧的

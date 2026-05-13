@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import test from 'node:test'
 import {
   createLaunchAgentPlist,
   doctorNewsFlashMonitor,
+  getNewsFlashStatus,
   listNewsFlashProviders,
   type NewsFlashProviderInfo,
   parseNewsFlashProvider,
   parseNewsFlashAgentCliRunner,
   parseOptionalNewsFlashProvider,
+  validateNewsFlashSmokeOutput,
 } from '../src/application/usecases/experimentalNewsFlash.js'
 import {
   writePublicApiProviderConfig,
@@ -457,4 +459,94 @@ test('LaunchAgent plist supports sh-compatible shell startup', () => {
   assert.match(plist, /<string>\/bin\/sh<\/string>/u)
   assert.match(plist, /\.profile/u)
   assert.match(plist, /eval &quot;value=\\\$\{\$name-\}&quot;/u)
+})
+
+test('news flash smoke validation rejects failed collector record', () => {
+  const validation = validateNewsFlashSmokeOutput(JSON.stringify({
+    jsonlPath: '/tmp/news-flash.jsonl',
+    record: {
+      ok: false,
+      item_count: 0,
+      error: 'public-apis exited 127',
+    },
+  }, null, 2))
+
+  assert.equal(validation.ok, false)
+  assert.equal(validation.recordOk, false)
+  assert.equal(validation.itemCount, 0)
+  assert.match(validation.detail, /public-apis exited 127/u)
+})
+
+test('news flash smoke validation accepts non-empty collector record', () => {
+  const validation = validateNewsFlashSmokeOutput(JSON.stringify({
+    jsonlPath: '/tmp/news-flash.jsonl',
+    record: {
+      ok: true,
+      item_count: 2,
+      items: [{ title: 'A' }, { title: 'B' }],
+    },
+  }, null, 2))
+
+  assert.equal(validation.ok, true)
+  assert.equal(validation.recordOk, true)
+  assert.equal(validation.itemCount, 2)
+})
+
+test('news flash status reads installed plist path over repo-root', async () => {
+  const previousHome = process.env.HOME
+  const previousPath = process.env.PATH
+  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-status-plist-'))
+  const homeDir = join(tempDir, 'home')
+  const binDir = join(tempDir, 'bin')
+  const templateDir = join(tempDir, 'installed-template')
+  const repoRoot = join(tempDir, 'installed-repo')
+  try {
+    process.env.HOME = homeDir
+    process.env.PATH = `${binDir}:${previousPath ?? ''}`
+    await import('node:fs/promises').then(async fs => {
+      await fs.mkdir(join(homeDir, 'Library/LaunchAgents'), { recursive: true })
+      await fs.mkdir(templateDir, { recursive: true })
+      await fs.mkdir(binDir, { recursive: true })
+      await fs.writeFile(join(binDir, 'launchctl'), '#!/bin/sh\nexit 1\n', {
+        mode: 0o755,
+      })
+    })
+
+    const plist = createLaunchAgentPlist({
+      label: 'com.public-apis-cli.experimental.news-flash.hackernews',
+      templateDir,
+      intervalSeconds: 60,
+      repoRoot,
+      shellPath: '/bin/sh',
+    })
+    await writeFile(
+      join(
+        homeDir,
+        'Library/LaunchAgents',
+        'com.public-apis-cli.experimental.news-flash.hackernews.plist',
+      ),
+      plist,
+    )
+
+    const result = await getNewsFlashStatus({
+      provider: 'hackernews',
+      repoRoot: '/wrong/repo',
+    })
+    const monitor = result.monitors[0]
+    assert.ok(monitor)
+    assert.equal(monitor.statusSource, 'installed-plist')
+    assert.equal(monitor.templateDir, templateDir)
+    assert.equal(monitor.installedWorkingDirectory, templateDir)
+    assert.equal(monitor.installedRepoRoot, repoRoot)
+    assert.equal(
+      monitor.latestSummaryPath,
+      join(templateDir, 'summary/news-flash.txt'),
+    )
+  } finally {
+    if (previousHome === undefined) delete process.env.HOME
+    else process.env.HOME = previousHome
+    if (previousPath === undefined) delete process.env.PATH
+    else process.env.PATH = previousPath
+    await rm(tempDir, { recursive: true, force: true })
+  }
 })

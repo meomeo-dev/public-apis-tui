@@ -321,6 +321,18 @@ test('scripts pass syntax checks', () => {
   execFileSync('node', ['--check', join(root, 'collect-news-once.mjs')])
   execFileSync('node', ['--check', join(root, 'summarize-news-flash-with-claude.mjs')])
   execFileSync('node', ['--check', join(root, 'render-news-flash-txt.mjs')])
+  const collectorSource = readFileSync(join(root, 'collect-news-once.mjs'), 'utf8')
+  assert.match(collectorSource, /PUBLIC_APIS_CLI_BIN/)
+  assert.match(collectorSource, /dist\/src\/cli\.js/)
+  assert.match(collectorSource, /process\.execPath/)
+  assert.match(collectorSource, /NEWS_FLASH_RUN_ID/)
+  assert.doesNotMatch(
+    collectorSource,
+    /const args = \[\n\s+'run', '--silent', 'dev'/,
+  )
+  const runnerSource = readFileSync(join(root, 'run-news-flash-cycle.sh'), 'utf8')
+  assert.match(runnerSource, /NEWS_FLASH_RUN_ID=/)
+  assert.match(runnerSource, /export NEWS_FLASH_RUN_ID/)
   const notifySource = readFileSync(join(root, 'notify-news-flash-macos.sh'), 'utf8')
   assert.match(notifySource, /-execute "\$open_command"/)
   assert.match(notifySource, /\/usr\/bin\/open/)
