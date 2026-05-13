@@ -1,6 +1,6 @@
 {
   "name": "public-apis-cli",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "CLI for exploring documented public-apis integrations.",
   "type": "module",
   "private": false,
@@ -47,8 +47,11 @@
     "release:preflight": "npm run quality:check && npm run build:tarball && npm run package:verify",
     "spec:validate": "node scripts/spec-validate.mjs",
     "start": "node dist/src/cli.js",
+    "test:changed": "node scripts/test-changed.mjs",
+    "test:incremental": "npm run test:changed",
     "test": "NODE_NO_WARNINGS=1 node --import tsx --test test/*.test.ts",
     "test:contract": "NODE_NO_WARNINGS=1 node --import tsx --test test/contract/*.test.ts",
+    "test:regression": "npm run test && npm run test:contract",
     "typecheck": "tsc --noEmit",
     "quality:check": "npm run lint && npm run typecheck && npm run spec:validate && npm run test && npm run test:contract",
     "test:live-api": "NODE_NO_WARNINGS=1 node --import tsx --test test/live-api/*.test.ts"

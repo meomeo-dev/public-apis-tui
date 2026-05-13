@@ -1,0 +1,34 @@
+{
+  "kind": "nytimes.topStories",
+  "status": "OK",
+  "section": "home",
+  "numResults": 2,
+  "articles": [
+    {
+      "id": "nyt://article/fixture-1",
+      "title": "World leaders agree on climate finance framework",
+      "abstract": "Officials announced a new climate finance framework.",
+      "url": "https://www.nytimes.com/2026/05/09/world/climate-finance.html",
+      "source": "New York Times",
+      "byline": "By Reporter One",
+      "section": "world",
+      "subsection": "climate",
+      "publishedAt": "2026-05-09T02:00:00Z",
+      "updatedAt": "2026-05-09T02:10:00Z",
+      "documentType": "Article"
+    },
+    {
+      "id": "nyt://article/fixture-2",
+      "title": "Technology shares climb after earnings reports",
+      "abstract": "Technology shares climbed after stronger earnings.",
+      "url": "https://www.nytimes.com/2026/05/09/business/technology-stocks.html",
+      "source": "New York Times",
+      "byline": "By Reporter Two",
+      "section": "business",
+      "subsection": "markets",
+      "publishedAt": "2026-05-09T03:00:00Z",
+      "updatedAt": "2026-05-09T03:20:00Z",
+      "documentType": "Article"
+    }
+  ]
+}

@@ -163,7 +163,7 @@ Offline replay 适合测试、演示、调试不稳定上游。
 
 npm 包会包含 `experimental/public-apis-news-flash-monitor/` 下的
 新闻快报模板（news-flash templates）。这些模板可以定期轮询选定
-provider，让 Claude CLI 生成摘要，渲染 TXT 快报，并安装 macOS
+provider，让 agent CLI 生成摘要，渲染 TXT 快报，并安装 macOS
 LaunchAgent 调度。
 
 ```sh
@@ -172,6 +172,14 @@ public-apis experimental news-flash run-once --provider hackernews
 public-apis experimental news-flash install --provider spaceflightnews \
   --interval-minutes 30
 ```
+
+默认 runner 是 `claude_code`。要切到 Codex，使用
+`--agent-cli-runner codex` 和 `--codex-profile <profile>`。Runner
+凭据可以来自 shell startup files、`--agent-env NAME=value`，或
+`--agent-env-file <path>`。Monitor 会桥接（bridge）Claude 的
+`ANTHROPIC_*` 设置，也会从 `CODEX_CONFIG_FILE`、`CODEX_HOME/config.toml`
+或 `~/.codex/config.toml` 读取 Codex `model_providers.*.env_key`
+声明的环境变量名。
 
 模板需要显式仓库或包根目录时，使用
 `PUBLIC_APIS_CLI_REPO=/path/to/public-apis-cli`。旧的

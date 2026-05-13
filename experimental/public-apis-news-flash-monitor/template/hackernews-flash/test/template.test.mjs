@@ -79,7 +79,7 @@ test('renderer writes readable TXT from valid flash JSON', async () => {
   assert.match(text, /## 下一步/)
 })
 
-test('summarizer sanitizes Claude error diagnostics', () => {
+test('summarizer sanitizes agent runner error diagnostics', () => {
   const source = readFileSync(
     join(root, 'summarize-news-flash-with-claude.mjs'),
     'utf8',
@@ -89,6 +89,10 @@ test('summarizer sanitizes Claude error diagnostics', () => {
   assert.match(source, /Claude result was invalid JSON/)
   assert.match(source, /Claude exited \$\{code\}: \$\{errorTail\(/)
   assert.match(source, /Claude stream-json parse failed: /)
+  assert.match(source, /runCodex/)
+  assert.match(source, /--profile/)
+  assert.match(source, /CODEX_PROFILE/)
+  assert.match(source, /Agent runner did not produce valid news flash/)
   assert.match(source, /sanitizeErrorText/)
   assert.match(source, /preparePromptInput/)
   assert.match(source, /All candidate items are preserved/)
@@ -222,6 +226,97 @@ console.log(JSON.stringify({ type: 'result', result }))
   assert.equal(output.flash.items[0].title, 'News item 99')
 })
 
+test('summarizer can use Codex runner with profile', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'news-flash-codex-runner-'))
+  const inputPath = join(dir, 'latest-news.jsonl')
+  const outPath = join(dir, 'news-flash.json')
+  const mockCodexPath = join(dir, 'mock-codex.mjs')
+  const tracePath = join(dir, 'mock-codex-trace.json')
+  await writeFile(inputPath, `${JSON.stringify({
+    collected_at: '2026-05-09T00:00:00.000Z',
+    provider: providerConfig.id,
+    operation: providerConfig.operation,
+    query: {},
+    ok: true,
+    item_count: 1,
+    pagination: { returned: 1 },
+    error: null,
+    items: [{
+      id: 'item-1',
+      title: 'Codex runner item',
+      source: 'Fixture Wire',
+      publishedAt: '2026-05-09T00:00:00Z',
+      url: 'https://example.com/news/codex',
+      summary: 'Summary for Codex runner fixture.',
+      authors: [],
+      tags: ['en'],
+      metrics: {},
+    }],
+  })}\n`)
+  await writeFile(mockCodexPath, `#!/usr/bin/env node
+import { readFileSync, writeFileSync } from 'node:fs'
+
+const args = process.argv.slice(2)
+const outputFlagIndex = args.indexOf('--output-last-message')
+const outputPath = args[outputFlagIndex + 1]
+const profileIndex = args.indexOf('--profile')
+const prompt = readFileSync(0, 'utf8')
+writeFileSync(process.env.NEWS_FLASH_MOCK_TRACE, JSON.stringify({
+  hasExec: args.includes('exec'),
+  hasJson: args.includes('--json'),
+  hasSkipGitCheck: args.includes('--skip-git-repo-check'),
+  profile: profileIndex === -1 ? null : args[profileIndex + 1],
+  promptHasFixture: prompt.includes('Codex runner item'),
+}))
+
+const flash = {
+  status: 'complete',
+  headline: 'Codex fixture briefing',
+  briefing_time: '2026-05-09T00:00:00.000Z',
+  source_operation: 'fixture.operation',
+  items: [{
+    title: 'Codex runner item',
+    source: 'Fixture Wire',
+    published_at: '2026-05-09T00:00:00Z',
+    summary: 'Fixture summary.',
+    why_it_matters: 'Fixture impact.',
+    url: 'https://example.com/news/codex',
+  }],
+  watchlist: ['fixture follow-up'],
+  next_action: 'Run the next monitoring cycle.',
+}
+writeFileSync(outputPath, JSON.stringify(flash))
+`)
+  await chmod(mockCodexPath, 0o755)
+
+  execFileSync(
+    'node',
+    [join(root, 'summarize-news-flash-with-claude.mjs'), inputPath, outPath],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        AGENT_CLI_RUNNER: 'codex',
+        CODEX_BIN: mockCodexPath,
+        CODEX_PROFILE: 'news-flash',
+        CLAUDE_MAX_ATTEMPTS: '1',
+        NEWS_FLASH_MOCK_TRACE: tracePath,
+      },
+    },
+  )
+
+  const trace = JSON.parse(readFileSync(tracePath, 'utf8'))
+  assert.equal(trace.hasExec, true)
+  assert.equal(trace.hasJson, true)
+  assert.equal(trace.hasSkipGitCheck, true)
+  assert.equal(trace.profile, 'news-flash')
+  assert.equal(trace.promptHasFixture, true)
+
+  const output = JSON.parse(readFileSync(outPath, 'utf8'))
+  assert.equal(output.flash.headline, 'Codex fixture briefing')
+  assert.equal(output.flash.items[0].title, 'Codex runner item')
+})
+
 test('scripts pass syntax checks', () => {
   execFileSync('node', ['--check', join(root, 'collect-news-once.mjs')])
   execFileSync('node', ['--check', join(root, 'summarize-news-flash-with-claude.mjs')])
@@ -239,6 +334,7 @@ test('scripts pass syntax checks', () => {
   assert.doesNotMatch(notifySource, /-open "\$open_uri"/)
   assert.doesNotMatch(notifySource, /-group "public-apis-news-flash"/)
   const shellFiles = [
+    'agent-env.sh',
     'claude-env.sh',
     'notify-news-flash-macos.sh',
     'run-news-flash-cycle.sh',

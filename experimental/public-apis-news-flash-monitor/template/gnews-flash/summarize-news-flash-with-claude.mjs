@@ -11,20 +11,26 @@ const outPath = resolve(
   process.argv[3] ?? join(process.cwd(), 'summary/news-flash.json'),
 )
 const claudeBin = process.env.CLAUDE_BIN ?? 'claude'
-const timeoutMs = Number(process.env.CLAUDE_TIMEOUT_MS ?? 180_000)
+const codexBin = process.env.CODEX_BIN ?? 'codex'
+const agentRunner = normalizeAgentRunner(process.env.AGENT_CLI_RUNNER)
+const timeoutMs = readTimeoutMs()
 const maxAttempts = Number(process.env.CLAUDE_MAX_ATTEMPTS ?? 3)
 const maxFieldChars = Number(process.env.NEWS_FLASH_INPUT_FIELD_CHARS ?? 700)
-const claudeEnv = createClaudeEnv()
+const agentEnv = createAgentEnv()
 const secretAssignmentPattern = new RegExp(
   [
     String.raw`\b(`,
     [
       'ANTHROPIC_API_KEY',
       'ANTHROPIC_BASE_URL',
+      'ANTHROPIC_MODEL',
       'LITELLM_MASTER_KEY',
       'LITELLM_API_KEY',
       'LITELLM_BASE_URL',
       'LITELLM_API_BASE',
+      'AGENT_ENV_FILE',
+      'AGENT_CLI_RUNNER_ENV_FILE',
+      'CODEX_PROFILE',
       'NEWSAPI_API_KEY',
       'GNEWS_API_KEY',
       String.raw`api[_-]?key`,
@@ -265,7 +271,7 @@ function parseStreamJson(stdout) {
     .map(line => JSON.parse(line))
 }
 
-function createClaudeEnv() {
+function createAgentEnv() {
   const env = { ...process.env }
   if (!env.ANTHROPIC_API_KEY) {
     if (env.LITELLM_MASTER_KEY) env.ANTHROPIC_API_KEY = env.LITELLM_MASTER_KEY
@@ -284,30 +290,41 @@ function createClaudeEnv() {
   return env
 }
 
-function describeClaudeAuth(events) {
+function describeAgentAuth(events = []) {
+  if (agentRunner === 'codex') {
+    return [
+      `runner=${agentRunner}`,
+      `CODEX_PROFILE=${agentEnv.CODEX_PROFILE ? 'set' : 'unset'}`,
+    ].join(', ')
+  }
   const initEvent = events.find(
     event => event.type === 'system' && event.subtype === 'init',
   )
   const apiKeySource = initEvent?.apiKeySource ?? 'unknown'
-  const hasAnthropicKey = claudeEnv.ANTHROPIC_API_KEY ? 'set' : 'unset'
-  const hasBaseUrl = claudeEnv.ANTHROPIC_BASE_URL ? 'set' : 'unset'
+  const hasAnthropicKey = agentEnv.ANTHROPIC_API_KEY ? 'set' : 'unset'
+  const hasBaseUrl = agentEnv.ANTHROPIC_BASE_URL ? 'set' : 'unset'
+  const hasModel = agentEnv.ANTHROPIC_MODEL ? 'set' : 'unset'
   return [
+    `runner=${agentRunner}`,
     `apiKeySource=${apiKeySource}`,
     `ANTHROPIC_API_KEY=${hasAnthropicKey}`,
     `ANTHROPIC_BASE_URL=${hasBaseUrl}`,
+    `ANTHROPIC_MODEL=${hasModel}`,
   ].join(', ')
 }
 
 function sanitizeErrorText(value) {
   const knownValues = [
-    claudeEnv.ANTHROPIC_API_KEY,
-    claudeEnv.ANTHROPIC_BASE_URL,
-    claudeEnv.LITELLM_MASTER_KEY,
-    claudeEnv.LITELLM_API_KEY,
-    claudeEnv.LITELLM_BASE_URL,
-    claudeEnv.LITELLM_API_BASE,
-    claudeEnv.NEWSAPI_API_KEY,
-    claudeEnv.GNEWS_API_KEY,
+    agentEnv.ANTHROPIC_API_KEY,
+    agentEnv.ANTHROPIC_BASE_URL,
+    agentEnv.ANTHROPIC_MODEL,
+    agentEnv.LITELLM_MASTER_KEY,
+    agentEnv.LITELLM_API_KEY,
+    agentEnv.LITELLM_BASE_URL,
+    agentEnv.LITELLM_API_BASE,
+    agentEnv.CODEX_PROFILE,
+    agentEnv.NEWSAPI_API_KEY,
+    agentEnv.GNEWS_API_KEY,
   ].filter(Boolean)
   let sanitized = String(value)
   for (const knownValue of knownValues) {
@@ -334,7 +351,7 @@ async function runClaude(prompt) {
       '--verbose',
       '--max-turns', '3',
       '--permission-mode', 'dontAsk',
-    ], { stdio: ['pipe', 'pipe', 'pipe'], env: claudeEnv })
+    ], { stdio: ['pipe', 'pipe', 'pipe'], env: agentEnv })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', chunk => { stdout += String(chunk) })
@@ -372,7 +389,7 @@ async function runClaude(prompt) {
           new Error(
             [
               `Claude exited ${code}: ${errorTail(resultText)}`,
-              `(${describeClaudeAuth(events)})`,
+              `(${describeAgentAuth(events)})`,
             ].join(' '),
           ),
         )
@@ -381,6 +398,133 @@ async function runClaude(prompt) {
       resolvePromise(events)
     })
   })
+}
+
+async function runCodex(prompt) {
+  return await new Promise((resolvePromise, reject) => {
+    const outputPath = resolve(dirname(outPath), 'codex-news-flash-result.txt')
+    const args = [
+      'exec',
+      '--json',
+      '--color', 'never',
+      '--skip-git-repo-check',
+      '--output-last-message', outputPath,
+    ]
+    if (agentEnv.CODEX_PROFILE) {
+      args.push('--profile', agentEnv.CODEX_PROFILE)
+    }
+    args.push('-')
+
+    const child = spawn(codexBin, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: agentEnv,
+      cwd: process.cwd(),
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', chunk => { stdout += String(chunk) })
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
+    child.stdin.end(prompt)
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM')
+      reject(new Error(`Codex timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
+    child.on('error', error => {
+      clearTimeout(timer)
+      reject(error)
+    })
+    child.on('close', async code => {
+      clearTimeout(timer)
+      let output = ''
+      try {
+        output = await readFile(outputPath, 'utf8')
+      } catch {
+        output = readCodexResultFromJsonl(stdout)
+      }
+      if (code !== 0) {
+        reject(
+          new Error(
+            [
+              `Codex exited ${code}: ${errorTail(`${stderr}\n${stdout}`)}`,
+              `(${describeAgentAuth()})`,
+            ].join(' '),
+          ),
+        )
+        return
+      }
+      resolvePromise(output)
+    })
+  })
+}
+
+async function runAgent(prompt) {
+  if (agentRunner === 'claude_code') return await runClaude(prompt)
+  return await runCodex(prompt)
+}
+
+function parseJsonFromAgentResult(result) {
+  if (agentRunner === 'claude_code') return parseJsonFromClaude(result)
+  return parseJsonFromText(String(result))
+}
+
+function parseJsonFromText(text) {
+  const raw = text
+    .trim()
+    .replace(/^```(?:json)?\s*/iu, '')
+    .replace(/\s*```$/u, '')
+    .trim()
+  try {
+    return JSON.parse(raw)
+  } catch (firstError) {
+    const match = /\{[\s\S]*\}/u.exec(raw)
+    if (!match) throw new Error(`Codex result was not JSON: ${errorTail(raw)}`)
+    try {
+      return JSON.parse(match[0])
+    } catch (secondError) {
+      throw new Error(
+        [
+          `Codex result was invalid JSON: ${formatErrorMessage(firstError)};`,
+          `extracted object also failed: ${formatErrorMessage(secondError)};`,
+          `tail: ${errorTail(raw)}`,
+        ].join(' '),
+      )
+    }
+  }
+}
+
+function readCodexResultFromJsonl(stdout) {
+  const events = stdout
+    .trim()
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .flatMap(line => {
+      try {
+        return [JSON.parse(line)]
+      } catch {
+        return []
+      }
+    })
+  const message = [...events].reverse().find(event => {
+    return typeof event.message === 'string' || typeof event.output === 'string'
+  })
+  return message?.message ?? message?.output ?? stdout
+}
+
+function normalizeAgentRunner(value) {
+  if (value === undefined || value.trim() === '') return 'claude_code'
+  if (value === 'claude_code' || value === 'codex') return value
+  throw new Error(`Unsupported AGENT_CLI_RUNNER: ${value}`)
+}
+
+function readTimeoutMs() {
+  if (agentRunner === 'codex') {
+    return Number(
+      process.env.CODEX_TIMEOUT_MS ?? process.env.AGENT_TIMEOUT_MS ?? 180_000,
+    )
+  }
+  return Number(
+    process.env.CLAUDE_TIMEOUT_MS ?? process.env.AGENT_TIMEOUT_MS ?? 180_000,
+  )
 }
 
 let lastError = null
@@ -426,8 +570,8 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 
   let flash
   try {
-    const events = await runClaude(prompt)
-    flash = parseJsonFromClaude(events)
+    const result = await runAgent(prompt)
+    flash = parseJsonFromAgentResult(result)
   } catch (error) {
     lastError = sanitizeErrorText(formatErrorMessage(error))
     continue
@@ -448,5 +592,5 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   lastError = errors.join('; ')
 }
 throw new Error(
-  `Claude did not produce valid news flash after ${maxAttempts} attempts: ${lastError}`,
+  `Agent runner did not produce valid news flash after ${maxAttempts} attempts: ${lastError}`,
 )

@@ -926,8 +926,8 @@ public-apis endpoints --format json | jq .
 
 ## 11. 参考证据
 
-本 SPEC 基于项目 TUI 设计研究与本地原文归档。公开仓库不包含内部
-研究归档路径。
+本 SPEC 基于本仓库公开的 CLI contract、renderer contract、README
+和本地实现约束。
 
 关键依据：
 

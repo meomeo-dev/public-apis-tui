@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 - 2026-05-13
+
+- Add news-flash templates for Chronicling America, Currents, The Guardian,
+  MarketAux, Mediastack, NewsData.io, New York Times, and TheNewsAPI.
+- Add configurable news-flash agent runners for Claude Code and Codex, including
+  environment-file loading, Codex profile selection, and provider API key
+  bridging.
+- Show provider secret key names in `public-apis apis config <provider> --help`
+  so users know which environment variables or config secrets to set.
+- Add incremental test commands for focused development while keeping full
+  regression checks available for release gates.
+- Add project-local WE skills for feature development, npm publishing, skill
+  maintenance, and parallel worktree development.
+
 ## 0.6.0 - 2026-05-12
 
 - Add and audit the Tire1.6 public API provider batch, including arXiv,

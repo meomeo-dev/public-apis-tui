@@ -16,7 +16,9 @@ import {
   installNewsFlashMonitor,
   listNewsFlashProviders,
   NEWS_FLASH_PROVIDER_PARAMETERS,
+  parseNewsFlashAgentCliRunner,
   type NewsFlashProvider,
+  type NewsFlashAgentOptions,
   parseNewsFlashProvider,
   parseOptionalNewsFlashProvider,
   runNewsFlashOnce,
@@ -29,7 +31,10 @@ import { exportSessionState, importSessionState } from '../../application/usecas
 import { defaultEndpointCatalog } from '../../infrastructure/network/endpointCatalog.js'
 import { inspectHome } from '../../application/usecases/inspectHome.js'
 import { searchSite } from '../../application/usecases/searchSite.js'
-import { defaultPublicApiRegistry } from '../../providers/providerRegistry.js'
+import {
+  defaultPublicApiRegistry,
+  type PublicApiRegistry,
+} from '../../providers/providerRegistry.js'
 import {
   getPublicApiOperationOptionGroupLabel,
   listPublicApiCliOptions,
@@ -128,7 +133,7 @@ export function createProgram(metadata: PackageMetadata): Command {
       await runCliAction(options, async () => describePublicApiProvider(providerOrOperation, publicApiRegistry))
     })
 
-  apis
+  const configCommand = apis
     .command('config')
     .description('Show or update one public API provider config.')
     .argument('<provider>', 'Provider id such as mediastack')
@@ -138,21 +143,31 @@ export function createProgram(metadata: PackageMetadata): Command {
     .option('--set-secret <name=value...>', 'Store provider secret values in the local provider config file')
     .option('--unset-secret <name...>', 'Remove provider secret values from the local provider config file')
     .option('--format <format>', 'Output format: json or text', 'text')
-    .action(async (providerId: string, options) => {
-      await runCliAction(options, async () => {
-        const defaultMode = parseExecutionMode(options.defaultMode)
-        const secrets = parseSecretMutations(options.setSecret, options.unsetSecret)
-        if (options.persist !== undefined || defaultMode !== undefined || secrets !== undefined) {
-          return writePublicApiProviderConfig({
-            providerId,
-            persist: options.persist,
-            defaultMode,
-            secrets,
-          })
-        }
-        return showPublicApiProviderConfig(providerId)
-      })
+
+  configCommand.configureHelp({
+    formatHelp: (command, helper) =>
+      formatPublicApiConfigHelp(command, helper, publicApiRegistry),
+  })
+
+  configCommand.action(async (providerId: string, options) => {
+    await runCliAction(options, async () => {
+      const defaultMode = parseExecutionMode(options.defaultMode)
+      const secrets = parseSecretMutations(options.setSecret, options.unsetSecret)
+      if (
+        options.persist !== undefined ||
+        defaultMode !== undefined ||
+        secrets !== undefined
+      ) {
+        return writePublicApiProviderConfig({
+          providerId,
+          persist: options.persist,
+          defaultMode,
+          secrets,
+        })
+      }
+      return showPublicApiProviderConfig(providerId)
     })
+  })
 
   const runOperationCommand = apis
     .command('run')
@@ -267,13 +282,20 @@ export function createProgram(metadata: PackageMetadata): Command {
   addNewsFlashProviderParameterOptions(newsFlash
     .command('doctor')
     .description('Check whether a provider can run before doing the real smoke run or install.')
-    .requiredOption('--provider <provider>', 'Provider template: spaceflightnews, hackernews, hashnode, newsapi, or gnews')
+    .requiredOption(
+      '--provider <provider>',
+      'Provider template; run providers to list templates',
+    )
     .option(
       '--repo-root <path>',
       'public-apis-cli repository root; defaults to current package root',
     )
     .option('--shell <path>', 'Shell used to load startup files; defaults to $SHELL')
     .option('--interval-minutes <minutes>', 'Schedule interval to validate in minutes', '30')
+    .option('--agent-cli-runner <runner>', 'Agent runner: claude_code or codex', 'claude_code')
+    .addOption(createAgentEnvOption())
+    .option('--agent-env-file <path>', 'Shell env file sourced before agent runner execution')
+    .option('--codex-profile <profile>', 'Codex config profile; required when runner is codex')
     .option('--format <format>', 'Output format: json or text', 'text'))
     .action(async options => {
       const provider = parseNewsFlashProvider(String(options.provider))
@@ -282,6 +304,7 @@ export function createProgram(metadata: PackageMetadata): Command {
         repoRoot: resolveRepoRootOption(options.repoRoot),
         intervalMinutes: parseIntegerOption(String(options.intervalMinutes), 'interval-minutes'),
         providerEnv: parseNewsFlashProviderEnv(options, provider),
+        agent: parseNewsFlashAgentOptions(options),
         shellPath: options.shell,
       }))
     })
@@ -290,7 +313,10 @@ export function createProgram(metadata: PackageMetadata): Command {
     .command('run-once')
     .alias('test')
     .description('Run one real provider cycle, summarize with Claude, render TXT, and send the notification.')
-    .requiredOption('--provider <provider>', 'Provider template: spaceflightnews, hackernews, hashnode, newsapi, or gnews')
+    .requiredOption(
+      '--provider <provider>',
+      'Provider template; run providers to list templates',
+    )
     .option(
       '--repo-root <path>',
       'public-apis-cli repository root; defaults to current package root',
@@ -298,6 +324,10 @@ export function createProgram(metadata: PackageMetadata): Command {
     .option('--shell <path>', 'Shell used to load startup files; defaults to $SHELL')
     .option('--interval-minutes <minutes>', 'Schedule interval to validate in minutes', '30')
     .option('--run-timeout-ms <ms>', 'Run timeout in milliseconds', '240000')
+    .option('--agent-cli-runner <runner>', 'Agent runner: claude_code or codex', 'claude_code')
+    .addOption(createAgentEnvOption())
+    .option('--agent-env-file <path>', 'Shell env file sourced before agent runner execution')
+    .option('--codex-profile <profile>', 'Codex config profile; required when runner is codex')
     .option('--format <format>', 'Output format: json or text', 'text'))
     .action(async options => {
       const provider = parseNewsFlashProvider(String(options.provider))
@@ -306,6 +336,7 @@ export function createProgram(metadata: PackageMetadata): Command {
         repoRoot: resolveRepoRootOption(options.repoRoot),
         intervalMinutes: parseIntegerOption(String(options.intervalMinutes), 'interval-minutes'),
         providerEnv: parseNewsFlashProviderEnv(options, provider),
+        agent: parseNewsFlashAgentOptions(options),
         shellPath: options.shell,
         runTimeoutMs: parseIntegerOption(String(options.runTimeoutMs), 'run-timeout-ms'),
       }))
@@ -315,7 +346,10 @@ export function createProgram(metadata: PackageMetadata): Command {
     .command('install')
     .alias('instal')
     .description('Preflight, smoke-test, and install one news flash template as a macOS LaunchAgent.')
-    .requiredOption('--provider <provider>', 'Provider template: spaceflightnews, hackernews, hashnode, newsapi, or gnews')
+    .requiredOption(
+      '--provider <provider>',
+      'Provider template; run providers to list templates',
+    )
     .option('--interval-minutes <minutes>', 'LaunchAgent interval in minutes', '30')
     .option(
       '--label <label>',
@@ -330,6 +364,10 @@ export function createProgram(metadata: PackageMetadata): Command {
     )
     .option('--shell <path>', 'Shell used to load startup files for preflight, smoke run, and LaunchAgent; defaults to $SHELL')
     .option('--run-timeout-ms <ms>', 'Smoke-run timeout in milliseconds', '240000')
+    .option('--agent-cli-runner <runner>', 'Agent runner: claude_code or codex', 'claude_code')
+    .addOption(createAgentEnvOption())
+    .option('--agent-env-file <path>', 'Shell env file sourced before agent runner execution')
+    .option('--codex-profile <profile>', 'Codex config profile; required when runner is codex')
     .option('--dry-run', 'Run preflight and smoke test but do not write or load the LaunchAgent')
     .option('--skip-load', 'Write the plist but do not call launchctl bootstrap')
     .option('--format <format>', 'Output format: json or text', 'text'))
@@ -340,6 +378,7 @@ export function createProgram(metadata: PackageMetadata): Command {
         repoRoot: resolveRepoRootOption(options.repoRoot),
         intervalMinutes: parseIntegerOption(String(options.intervalMinutes), 'interval-minutes'),
         providerEnv: parseNewsFlashProviderEnv(options, provider),
+        agent: parseNewsFlashAgentOptions(options),
         label: options.label,
         shellPath: options.shell,
         dryRun: options.dryRun === true,
@@ -376,7 +415,10 @@ export function createProgram(metadata: PackageMetadata): Command {
     .command('uninstall')
     .alias('remove')
     .description('Unload and remove a news flash LaunchAgent plist.')
-    .requiredOption('--provider <provider>', 'Provider template: spaceflightnews, hackernews, hashnode, newsapi, or gnews')
+    .requiredOption(
+      '--provider <provider>',
+      'Provider template; run providers to list templates',
+    )
     .option(
       '--label <label>',
       [
@@ -640,6 +682,65 @@ function addPublicApiOperationCommands(program: Command, operations: PublicApiOp
   }
 }
 
+function formatPublicApiConfigHelp(
+  command: Command,
+  helper: Help,
+  registry: PublicApiRegistry,
+): string {
+  const baseHelp = Help.prototype.formatHelp.call(helper, command, helper)
+  const providerId = readHelpProviderId(command.args)
+  return [
+    baseHelp.trimEnd(),
+    '',
+    formatPublicApiProviderSecretHelp(providerId, registry),
+    '',
+  ].join('\n')
+}
+
+function readHelpProviderId(args: readonly string[]): string | undefined {
+  return args.find(arg => !arg.startsWith('-'))
+}
+
+function formatPublicApiProviderSecretHelp(
+  providerId: string | undefined,
+  registry: PublicApiRegistry,
+): string {
+  if (providerId === undefined) {
+    return [
+      'Provider Secrets:',
+      '  public-apis apis config <provider> --help',
+      '  public-apis apis config currents --help',
+    ].join('\n')
+  }
+
+  const manifest = registry.manifests.find(entry => entry.id === providerId)
+  if (manifest === undefined) {
+    const supported = registry.manifests.map(entry => entry.id).join(', ')
+    return [
+      `Unknown provider: ${providerId}`,
+      `Supported providers: ${supported}`,
+    ].join('\n')
+  }
+
+  const envVars = manifest.auth.envVars ?? []
+  if (envVars.length === 0) {
+    return [
+      'Provider Secrets:',
+      `  ${providerId} does not require a stored API key.`,
+    ].join('\n')
+  }
+
+  const exampleCommands = envVars.flatMap(envVar => [
+    `  public-apis apis config ${providerId} --set-secret ${envVar}=<value>`,
+    `  public-apis apis config ${providerId} --unset-secret ${envVar}`,
+  ])
+  return [
+    'Provider Secrets:',
+    `  required: ${envVars.join(', ')}`,
+    ...exampleCommands,
+  ].join('\n')
+}
+
 function formatPublicApiRunHelp(
   command: Command,
   helper: Help,
@@ -740,6 +841,16 @@ function addNewsFlashProviderParameterOptions(command: Command): Command {
   return command
 }
 
+function createAgentEnvOption(): Option {
+  return new Option(
+    '--agent-env <NAME=value>',
+    'Agent runner environment assignment; repeat for multiple values',
+  ).argParser((value: string, previous: string[] | undefined) => [
+    ...(previous ?? []),
+    value,
+  ])
+}
+
 function parseNewsFlashProviderEnv(options: Record<string, unknown>, provider: NewsFlashProvider): Record<string, string> {
   const providerEnv: Record<string, string> = {}
   const supportedEnvNames = new Set(NEWS_FLASH_PROVIDER_PARAMETERS.filter(parameter => parameter.providers.includes(provider)).map(parameter => parameter.env))
@@ -757,6 +868,41 @@ function parseNewsFlashProviderEnv(options: Record<string, unknown>, provider: N
     }
   }
   return providerEnv
+}
+
+function parseNewsFlashAgentOptions(options: Record<string, unknown>): NewsFlashAgentOptions {
+  return {
+    runner: parseNewsFlashAgentCliRunner(String(options.agentCliRunner ?? 'claude_code')),
+    env: parseNameValueListOption(options.agentEnv, 'agent-env'),
+    envFile: typeof options.agentEnvFile === 'string' ? options.agentEnvFile : undefined,
+    codexProfile: typeof options.codexProfile === 'string' ? options.codexProfile : undefined,
+  }
+}
+
+function parseNameValueListOption(value: unknown, label: string): Record<string, string> {
+  const entries = value === undefined
+    ? []
+    : Array.isArray(value)
+      ? value.map(String)
+      : [String(value)]
+  const parsed: Record<string, string> = {}
+  for (const entry of entries) {
+    const separator = entry.indexOf('=')
+    if (separator <= 0) {
+      throw new RuntimeFailure('INVALID_ARGUMENT', `Invalid --${label} value: ${entry}`, {
+        remediation: `Use --${label} NAME=value.`,
+      })
+    }
+    const name = entry.slice(0, separator)
+    const assignedValue = entry.slice(separator + 1)
+    if (!/^[A-Z][A-Z0-9_]*$/u.test(name)) {
+      throw new RuntimeFailure('INVALID_ARGUMENT', `Invalid --${label} name: ${name}`, {
+        remediation: 'Use an uppercase shell variable name.',
+      })
+    }
+    parsed[name] = assignedValue
+  }
+  return parsed
 }
 
 function filterNewsFlashHelpOptions(command: Command, provider: NewsFlashProvider | undefined): Option[] {
@@ -795,29 +941,83 @@ function readNewsFlashOptionName(option: string): string {
     .replace(/-([a-z])/gu, (_, letter: string) => letter.toUpperCase())
 }
 
-function formatNewsFlashProviderParameterHelp(provider: NewsFlashProvider | undefined, commandName: string): string {
+function formatNewsFlashProviderParameterHelp(
+  provider: NewsFlashProvider | undefined,
+  commandName: string,
+): string {
   const examples = provider === undefined
     ? [
-        '  public-apis experimental news-flash run-once --provider hackernews --hackernews-list new --hackernews-limit 5',
-        '  public-apis experimental news-flash install --provider spaceflightnews --spaceflightnews-search artemis --spaceflightnews-limit 8',
-        '  public-apis experimental news-flash install --provider newsapi --newsapi-country us --newsapi-category technology',
-        '  public-apis experimental news-flash run-once --provider gnews --gnews-query AI --gnews-language en',
+        formatNewsFlashProviderExampleCommand(
+          'run-once',
+          'hackernews',
+        ),
+        formatNewsFlashProviderExampleCommand(
+          'install',
+          'spaceflightnews',
+        ),
+        formatNewsFlashProviderExampleCommand(
+          'install',
+          'guardian',
+        ),
+        formatNewsFlashProviderExampleCommand(
+          'run-once',
+          'mediastack',
+        ),
       ]
-    : [`  public-apis experimental news-flash ${commandName} --provider ${provider} ${formatNewsFlashProviderExampleArgs(provider)}`]
+    : [formatNewsFlashProviderExampleCommand(commandName, provider)]
   return [
     '',
-    provider === undefined ? 'Provider parameter examples:' : `Provider parameter example for ${provider}:`,
+    provider === undefined
+      ? 'Provider parameter examples:'
+      : `Provider parameter example for ${provider}:`,
     ...examples,
     '',
     'Install persists these provider parameters into the LaunchAgent command.',
   ].join('\n')
 }
 
-function formatNewsFlashProviderExampleArgs(provider: NewsFlashProvider): string {
+function formatNewsFlashProviderExampleCommand(
+  commandName: string,
+  provider: string,
+): string {
+  return [
+    `  public-apis experimental news-flash ${commandName}`,
+    `--provider ${provider}`,
+    formatNewsFlashProviderExampleArgs(provider),
+  ].join(' ')
+}
+
+function formatNewsFlashProviderExampleArgs(provider: string): string {
   if (provider === 'hackernews') return '--hackernews-list new --hackernews-limit 5'
-  if (provider === 'spaceflightnews') return '--spaceflightnews-search artemis --spaceflightnews-limit 8'
-  if (provider === 'newsapi') return '--newsapi-country us --newsapi-category technology'
+  if (provider === 'spaceflightnews') {
+    return '--spaceflightnews-search artemis --spaceflightnews-limit 8'
+  }
+  if (provider === 'newsapi') {
+    return '--newsapi-country us --newsapi-category technology'
+  }
   if (provider === 'gnews') return '--gnews-query AI --gnews-language en'
+  if (provider === 'chroniclingamerica') {
+    return '--chroniclingamerica-query lincoln --chroniclingamerica-count 5'
+  }
+  if (provider === 'currents') {
+    return '--currents-keywords technology --currents-page-size 10'
+  }
+  if (provider === 'guardian') {
+    return '--guardian-query technology --guardian-page-size 10'
+  }
+  if (provider === 'marketaux') {
+    return '--marketaux-search semiconductors --marketaux-limit 10'
+  }
+  if (provider === 'mediastack') {
+    return '--mediastack-keywords AI --mediastack-limit 10'
+  }
+  if (provider === 'newsdata') {
+    return '--newsdata-query AI --newsdata-size 10'
+  }
+  if (provider === 'nytimes') {
+    return '--nytimes-section technology --nytimes-limit 10'
+  }
+  if (provider === 'thenews') return '--thenews-search AI --thenews-language en'
   return '--hashnode-host blog.developerdao.com --hashnode-first 5'
 }
 

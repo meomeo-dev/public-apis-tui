@@ -71,6 +71,7 @@ function renderExperimentalNewsFlashInstall(value: Record<string, unknown>): str
   const checks = Array.isArray(value.checks) ? value.checks.filter(isRecord) : []
   const smokeRun = isRecord(value.smokeRun) ? value.smokeRun : {}
   const providerEnv = isRecord(value.providerEnv) ? value.providerEnv : {}
+  const agent = isRecord(value.agent) ? value.agent : {}
   const nextSteps = Array.isArray(value.nextSteps) ? value.nextSteps.map(String) : []
   const lines = [
     `${pc.bold('Experimental news flash monitor')} ${String(value.provider ?? 'unknown')}`,
@@ -79,6 +80,7 @@ function renderExperimentalNewsFlashInstall(value: Record<string, unknown>): str
     `${pc.dim('plist')} ${String(value.plistPath ?? '')}`,
     `${pc.dim('interval')} ${String(value.intervalSeconds ?? '?')} seconds`,
     `${pc.dim('shell')} ${String(value.shellPath ?? '')}`,
+    `${pc.dim('agent')} ${formatNewsFlashAgent(agent)}`,
     `${pc.dim('params')} ${formatNewsFlashProviderEnv(providerEnv)}`,
     `${pc.dim('installed')} ${String(value.installed ?? false)} · ${pc.dim('loaded')} ${String(value.loaded ?? false)} · ${pc.dim('dry run')} ${String(value.dryRun ?? false)}`,
     '',
@@ -129,11 +131,13 @@ function renderExperimentalNewsFlashProviders(value: Record<string, unknown>): s
 function renderExperimentalNewsFlashDoctor(value: Record<string, unknown>): string {
   const checks = Array.isArray(value.checks) ? value.checks.filter(isRecord) : []
   const providerEnv = isRecord(value.providerEnv) ? value.providerEnv : {}
+  const agent = isRecord(value.agent) ? value.agent : {}
   const nextSteps = Array.isArray(value.nextSteps) ? value.nextSteps.map(String) : []
   const lines = [
     `${pc.bold('News flash doctor')} ${String(value.provider ?? 'unknown')} · ${value.ok === true ? pc.green('ready') : pc.yellow('needs attention')}`,
     `${pc.dim('template')} ${String(value.templateDir ?? '')}`,
     `${pc.dim('shell')} ${String(value.shellPath ?? '')}`,
+    `${pc.dim('agent')} ${formatNewsFlashAgent(agent)}`,
     `${pc.dim('params')} ${formatNewsFlashProviderEnv(providerEnv)}`,
     '',
     pc.bold('Checks'),
@@ -151,11 +155,13 @@ function renderExperimentalNewsFlashDoctor(value: Record<string, unknown>): stri
 function renderExperimentalNewsFlashRunOnce(value: Record<string, unknown>): string {
   const smokeRun = isRecord(value.smokeRun) ? value.smokeRun : {}
   const providerEnv = isRecord(value.providerEnv) ? value.providerEnv : {}
+  const agent = isRecord(value.agent) ? value.agent : {}
   const nextSteps = Array.isArray(value.nextSteps) ? value.nextSteps.map(String) : []
   const lines = [
     `${pc.bold('News flash run-once')} ${String(value.provider ?? 'unknown')} · ${value.ok === true ? pc.green('complete') : pc.yellow('failed')}`,
     `${pc.dim('template')} ${String(value.templateDir ?? '')}`,
     `${pc.dim('shell')} ${String(value.shellPath ?? '')}`,
+    `${pc.dim('agent')} ${formatNewsFlashAgent(agent)}`,
     `${pc.dim('params')} ${formatNewsFlashProviderEnv(providerEnv)}`,
     `${pc.dim('run')} exit=${String(smokeRun.exitCode ?? '?')} duration=${String(smokeRun.durationMs ?? '?')}ms`,
   ]
@@ -174,6 +180,16 @@ function formatNewsFlashProviderEnv(providerEnv: Record<string, unknown>): strin
     .filter(([, value]) => typeof value === 'string')
     .sort(([left], [right]) => left.localeCompare(right))
   return entries.length === 0 ? 'default' : entries.map(([name, value]) => `${name}=${String(value)}`).join(' ')
+}
+
+function formatNewsFlashAgent(agent: Record<string, unknown>): string {
+  const runner = String(agent.runner ?? 'claude_code')
+  const env = isRecord(agent.env) ? Object.keys(agent.env).sort() : []
+  const parts = [runner]
+  if (typeof agent.codexProfile === 'string') parts.push(`profile=${agent.codexProfile}`)
+  if (typeof agent.envFile === 'string') parts.push(`env-file=${agent.envFile}`)
+  if (env.length > 0) parts.push(`env=${env.join(',')}`)
+  return parts.join(' ')
 }
 
 function renderExperimentalNewsFlashStatus(value: Record<string, unknown>): string {

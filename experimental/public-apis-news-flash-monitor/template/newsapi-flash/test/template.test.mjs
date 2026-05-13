@@ -240,6 +240,7 @@ test('scripts pass syntax checks', () => {
   assert.doesNotMatch(notifySource, /-open "\$open_uri"/)
   assert.doesNotMatch(notifySource, /-group "public-apis-news-flash"/)
   const shellFiles = [
+    'agent-env.sh',
     'claude-env.sh',
     'notify-news-flash-macos.sh',
     'run-news-flash-cycle.sh',

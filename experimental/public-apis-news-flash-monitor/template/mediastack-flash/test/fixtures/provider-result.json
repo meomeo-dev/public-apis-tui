@@ -1,0 +1,43 @@
+{
+  "kind": "mediastack.news",
+  "api": {
+    "provider": "mediastack",
+    "endpoint": "GET /v1/news"
+  },
+  "query": {
+    "keywords": "markets",
+    "countries": "us",
+    "languages": "en",
+    "sort": "published_desc",
+    "limit": 2
+  },
+  "pagination": {
+    "limit": 2,
+    "offset": 0,
+    "count": 2,
+    "total": 42
+  },
+  "articles": [
+    {
+      "title": "Central bank signals policy shift",
+      "source": "Example News",
+      "category": "business",
+      "country": "us",
+      "language": "en",
+      "publishedAt": "2026-05-09T02:00:00Z",
+      "url": "https://example.com/policy",
+      "author": "Reporter One",
+      "description": "Officials signaled a possible policy shift."
+    },
+    {
+      "title": "Technology shares rally",
+      "source": "Wire",
+      "category": "technology",
+      "country": "us",
+      "language": "en",
+      "publishedAt": "2026-05-09T03:00:00Z",
+      "url": "https://example.com/markets",
+      "description": "Technology shares rallied after earnings."
+    }
+  ]
+}

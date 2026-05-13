@@ -7,21 +7,61 @@ import {
   createLaunchAgentPlist,
   doctorNewsFlashMonitor,
   listNewsFlashProviders,
+  type NewsFlashProviderInfo,
   parseNewsFlashProvider,
+  parseNewsFlashAgentCliRunner,
   parseOptionalNewsFlashProvider,
 } from '../src/application/usecases/experimentalNewsFlash.js'
-import { writePublicApiProviderConfig } from '../src/infrastructure/persistence/publicApiConfig.js'
+import {
+  writePublicApiProviderConfig,
+} from '../src/infrastructure/persistence/publicApiConfig.js'
+
+function findProvider(
+  providers: NewsFlashProviderInfo[],
+  provider: string,
+): NewsFlashProviderInfo | undefined {
+  return providers.find(entry => entry.provider === provider)
+}
+
+function parameterOptions(provider: NewsFlashProviderInfo | undefined): string {
+  return provider?.parameters.map(parameter => parameter.option).join(' ') ?? ''
+}
 
 test('experimental news flash provider parser accepts supported providers', () => {
-  assert.equal(parseNewsFlashProvider('spaceflightnews'), 'spaceflightnews')
-  assert.equal(parseNewsFlashProvider('hackernews'), 'hackernews')
-  assert.equal(parseNewsFlashProvider('hashnode'), 'hashnode')
-  assert.equal(parseNewsFlashProvider('newsapi'), 'newsapi')
-  assert.equal(parseNewsFlashProvider('gnews'), 'gnews')
+  const providers = [
+    'spaceflightnews',
+    'hackernews',
+    'hashnode',
+    'newsapi',
+    'gnews',
+    'chroniclingamerica',
+    'currents',
+    'guardian',
+    'marketaux',
+    'mediastack',
+    'newsdata',
+    'nytimes',
+    'thenews',
+  ]
+  for (const provider of providers) {
+    assert.equal(parseNewsFlashProvider(provider), provider)
+  }
 })
 
 test('experimental news flash provider parser rejects unsupported provider', () => {
-  assert.throws(() => parseNewsFlashProvider('unknown'), /Unsupported news flash provider/u)
+  assert.throws(
+    () => parseNewsFlashProvider('unknown'),
+    /Unsupported news flash provider/u,
+  )
+})
+
+test('experimental news flash agent runner parser accepts supported runners', () => {
+  assert.equal(parseNewsFlashAgentCliRunner('claude_code'), 'claude_code')
+  assert.equal(parseNewsFlashAgentCliRunner('codex'), 'codex')
+  assert.throws(
+    () => parseNewsFlashAgentCliRunner('open-ended'),
+    /Unsupported agent CLI runner/u,
+  )
 })
 
 test('experimental news flash optional provider parser supports omitted filter', () => {
@@ -29,30 +69,89 @@ test('experimental news flash optional provider parser supports omitted filter',
   assert.equal(parseOptionalNewsFlashProvider('gnews'), 'gnews')
 })
 
-test('experimental news flash rejects parameters outside the selected provider', async () => {
+test(
+  'experimental news flash rejects parameters outside the selected provider',
+  async () => {
+    await assert.rejects(
+      () => doctorNewsFlashMonitor({
+        provider: 'hackernews',
+        repoRoot: '/repo',
+        intervalMinutes: 30,
+        providerEnv: {
+          NEWSAPI_COUNTRY: 'us',
+        },
+      }),
+      /Unsupported news flash parameter for hackernews: NEWSAPI_COUNTRY/u,
+    )
+  },
+)
+
+test('experimental news flash rejects new provider parameter mismatch', async () => {
   await assert.rejects(
     () => doctorNewsFlashMonitor({
-      provider: 'hackernews',
+      provider: 'guardian',
       repoRoot: '/repo',
       intervalMinutes: 30,
       providerEnv: {
-        NEWSAPI_COUNTRY: 'us',
+        NEWSDATA_QUERY: 'technology',
       },
     }),
-    /Unsupported news flash parameter for hackernews: NEWSAPI_COUNTRY/u,
+    /Unsupported news flash parameter for guardian: NEWSDATA_QUERY/u,
   )
 })
 
 test('experimental news flash provider list exposes lifecycle metadata', () => {
   const result = listNewsFlashProviders('/repo')
+  const providers = result.providers
   assert.equal(result.kind, 'experimental.newsFlash.providers')
-  assert.equal(result.providers.length, 5)
-  assert.equal(result.providers.find(provider => provider.provider === 'newsapi')?.operation, 'newsapi.headlines')
-  assert.equal(result.providers.find(provider => provider.provider === 'gnews')?.operation, 'gnews.headlines')
-  assert.deepEqual(result.providers.find(provider => provider.provider === 'newsapi')?.requiredEnv, ['NEWSAPI_API_KEY'])
-  assert.equal(result.providers.find(provider => provider.provider === 'hackernews')?.requiredEnv.length, 0)
-  assert.match(result.providers.find(provider => provider.provider === 'hackernews')?.parameters.map(parameter => parameter.option).join(' ') ?? '', /--hackernews-list <top\|new\|best\|ask\|show\|job>/u)
-  assert.match(result.providers.find(provider => provider.provider === 'spaceflightnews')?.parameters.map(parameter => parameter.option).join(' ') ?? '', /--spaceflightnews-search <text>/u)
+  assert.equal(result.providers.length, 13)
+  assert.equal(findProvider(providers, 'newsapi')?.operation, 'newsapi.headlines')
+  assert.equal(findProvider(providers, 'gnews')?.operation, 'gnews.headlines')
+  assert.equal(findProvider(providers, 'guardian')?.operation, 'guardian.search')
+  assert.equal(findProvider(providers, 'newsdata')?.operation, 'newsdata.latest')
+  assert.equal(findProvider(providers, 'nytimes')?.operation, 'nytimes.topStories')
+  assert.equal(findProvider(providers, 'thenews')?.operation, 'thenews.all')
+  assert.deepEqual(
+    findProvider(providers, 'newsapi')?.requiredEnv,
+    ['NEWSAPI_API_KEY'],
+  )
+  assert.deepEqual(
+    findProvider(providers, 'guardian')?.requiredEnv,
+    ['GUARDIAN_API_KEY'],
+  )
+  assert.deepEqual(
+    findProvider(providers, 'newsdata')?.requiredEnv,
+    ['NEWSDATAIO_API_KEY'],
+  )
+  assert.deepEqual(
+    findProvider(providers, 'nytimes')?.requiredEnv,
+    ['NYTIMES_API_KEY'],
+  )
+  assert.deepEqual(
+    findProvider(providers, 'thenews')?.requiredEnv,
+    ['THENEWSAPI_API_KEY'],
+  )
+  assert.equal(findProvider(providers, 'hackernews')?.requiredEnv.length, 0)
+  assert.equal(
+    findProvider(providers, 'chroniclingamerica')?.requiredEnv.length,
+    0,
+  )
+  assert.match(
+    parameterOptions(findProvider(providers, 'hackernews')),
+    /--hackernews-list <top\|new\|best\|ask\|show\|job>/u,
+  )
+  assert.match(
+    parameterOptions(findProvider(providers, 'spaceflightnews')),
+    /--spaceflightnews-search <text>/u,
+  )
+  assert.match(
+    parameterOptions(findProvider(providers, 'guardian')),
+    /--guardian-query <text>/u,
+  )
+  assert.match(
+    parameterOptions(findProvider(providers, 'mediastack')),
+    /--mediastack-keywords <text>/u,
+  )
 })
 
 test('LaunchAgent plist includes runner, interval, repo env, and logs', () => {
@@ -67,6 +166,7 @@ test('LaunchAgent plist includes runner, interval, repo env, and logs', () => {
   assert.match(plist, /<string>\/bin\/bash<\/string>/u)
   assert.match(plist, /<string>-c<\/string>/u)
   assert.match(plist, /run-news-flash-cycle-notify\.sh/u)
+  assert.match(plist, /AGENT_CLI_RUNNER=&apos;claude_code&apos;/u)
   assert.match(plist, /for name in .*ANTHROPIC_API_KEY/u)
   assert.match(plist, /\.bashrc/u)
   assert.match(plist, /cd &apos;\/tmp\/news flash\/template&apos; &amp;&amp;/u)
@@ -97,54 +197,249 @@ test('LaunchAgent plist persists provider parameters into runner command', () =>
   assert.doesNotMatch(plist, /CYCLES=1/u)
 })
 
-test('LaunchAgent plist reads provider secret from local config without embedding the value', () => {
+test('LaunchAgent plist persists agent runner env assignments', () => {
   const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.newsapi',
+    label: 'com.example.news-flash.agent',
     templateDir: '/tmp/news-flash/template',
     intervalSeconds: 300,
     repoRoot: '/tmp/public-apis-cli',
     shellPath: '/bin/zsh',
-    provider: 'newsapi',
-    providerEnv: {
-      NEWSAPI_COUNTRY: 'us',
+    agent: {
+      runner: 'claude_code',
+      envFile: '/tmp/news-flash/anthropic.env',
+      env: {
+        ANTHROPIC_BASE_URL: 'https://anthropic.example/v1',
+        ANTHROPIC_API_KEY: 'test-anthropic-secret',
+        ANTHROPIC_MODEL: 'claude-sonnet-4-5',
+      },
     },
   })
-  assert.match(plist, /NEWSAPI_API_KEY/u)
-  assert.match(plist, /config\.json/u)
-  assert.match(plist, /NEWSAPI_COUNTRY=&apos;us&apos;/u)
-  assert.doesNotMatch(plist, /72402057/u)
+  assert.match(plist, /AGENT_ENV_FILE=&apos;\/tmp\/news-flash\/anthropic.env&apos;/u)
+  assert.match(plist, /ANTHROPIC_MODEL=&apos;claude-sonnet-4-5&apos;/u)
+  assert.match(
+    plist,
+    /ANTHROPIC_BASE_URL=&apos;https:\/\/anthropic\.example\/v1&apos;/u,
+  )
+  assert.match(plist, /ANTHROPIC_API_KEY=&apos;test-anthropic-secret&apos;/u)
 })
 
-test('news flash keyed provider preflight accepts public-apis local config secret', async () => {
-  const previousHome = process.env.SITE_CDP_HOME_DIR
+test('LaunchAgent plist persists Codex runner profile', () => {
+  const plist = createLaunchAgentPlist({
+    label: 'com.example.news-flash.codex',
+    templateDir: '/tmp/news-flash/template',
+    intervalSeconds: 300,
+    repoRoot: '/tmp/public-apis-cli',
+    shellPath: '/bin/zsh',
+    agent: {
+      runner: 'codex',
+      codexProfile: 'news-flash',
+      env: {
+        CODEX_BIN: '/usr/local/bin/codex',
+      },
+    },
+  })
+  assert.match(plist, /AGENT_CLI_RUNNER=&apos;codex&apos;/u)
+  assert.match(plist, /CODEX_PROFILE=&apos;news-flash&apos;/u)
+  assert.match(plist, /CODEX_BIN=&apos;\/usr\/local\/bin\/codex&apos;/u)
+  assert.match(plist, /for name in .*CODEX_PROFILE/u)
+})
+
+test(
+  'LaunchAgent plist reads provider secret from local config without value',
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.newsapi',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      provider: 'newsapi',
+      providerEnv: {
+        NEWSAPI_COUNTRY: 'us',
+      },
+    })
+    assert.match(plist, /NEWSAPI_API_KEY/u)
+    assert.match(plist, /config\.json/u)
+    assert.match(plist, /NEWSAPI_COUNTRY=&apos;us&apos;/u)
+    assert.doesNotMatch(plist, /72402057/u)
+  },
+)
+
+test('LaunchAgent plist reads new provider secret without embedding value', () => {
+  const plist = createLaunchAgentPlist({
+    label: 'com.example.news-flash.guardian',
+    templateDir: '/tmp/news-flash/template',
+    intervalSeconds: 300,
+    repoRoot: '/tmp/public-apis-cli',
+    shellPath: '/bin/zsh',
+    provider: 'guardian',
+    providerEnv: {
+      GUARDIAN_QUERY: 'technology',
+    },
+  })
+  assert.match(plist, /GUARDIAN_API_KEY/u)
+  assert.match(plist, /config\.json/u)
+  assert.match(plist, /GUARDIAN_QUERY=&apos;technology&apos;/u)
+  assert.doesNotMatch(plist, /test-guardian-secret/u)
+})
+
+test(
+  'news flash keyed provider preflight accepts public-apis config secret',
+  async () => {
+    const previousHome = process.env.SITE_CDP_HOME_DIR
+    const previousPath = process.env.PATH
+    const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-config-secret-'))
+    const binDir = join(tempDir, 'bin')
+    try {
+      process.env.SITE_CDP_HOME_DIR = tempDir
+      await writePublicApiProviderConfig({
+        providerId: 'newsapi',
+        secrets: { NEWSAPI_API_KEY: 'config-secret' },
+      })
+      process.env.PATH = `${binDir}:${previousPath ?? ''}`
+
+      await import('node:fs/promises').then(async fs => {
+        await fs.mkdir(binDir, { recursive: true })
+        const commands = [
+          'node',
+          'npm',
+          'claude',
+          'terminal-notifier',
+          'launchctl',
+        ]
+        for (const command of commands) {
+          await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+            mode: 0o755,
+          })
+        }
+      })
+
+      const result = await doctorNewsFlashMonitor({
+        provider: 'newsapi',
+        repoRoot: process.cwd(),
+        intervalMinutes: 30,
+        shellPath: '/bin/sh',
+      })
+
+      const newsapiKeyCheck = result.checks.find(
+        check => check.name === 'NEWSAPI_API_KEY',
+      )
+      assert.equal(newsapiKeyCheck?.ok, true)
+      assert.match(newsapiKeyCheck?.detail ?? '', /local provider config/u)
+    } finally {
+      if (previousHome === undefined) delete process.env.SITE_CDP_HOME_DIR
+      else process.env.SITE_CDP_HOME_DIR = previousHome
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  },
+)
+
+test('news flash preflight loads agent env file before runner checks', async () => {
+  const previousHome = process.env.HOME
   const previousPath = process.env.PATH
-  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-config-secret-'))
+  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-agent-env-file-'))
   const binDir = join(tempDir, 'bin')
+  const homeDir = join(tempDir, 'home')
+  const codexPath = join(tempDir, 'codex-from-env-file')
+  const envFilePath = join(tempDir, 'agent.env')
   try {
-    process.env.SITE_CDP_HOME_DIR = tempDir
-    await writePublicApiProviderConfig({ providerId: 'newsapi', secrets: { NEWSAPI_API_KEY: 'config-secret' } })
+    process.env.HOME = homeDir
     process.env.PATH = `${binDir}:${previousPath ?? ''}`
 
     await import('node:fs/promises').then(async fs => {
       await fs.mkdir(binDir, { recursive: true })
-      for (const command of ['node', 'npm', 'claude', 'terminal-notifier', 'launchctl']) {
-        await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+      await fs.mkdir(homeDir, { recursive: true })
+      for (const command of ['node', 'npm', 'terminal-notifier', 'launchctl']) {
+        await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+          mode: 0o755,
+        })
       }
+      await fs.writeFile(codexPath, '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+      await fs.writeFile(envFilePath, `export CODEX_BIN=${codexPath}\n`)
     })
 
     const result = await doctorNewsFlashMonitor({
-      provider: 'newsapi',
+      provider: 'hackernews',
       repoRoot: process.cwd(),
       intervalMinutes: 30,
       shellPath: '/bin/sh',
+      agent: {
+        runner: 'codex',
+        envFile: envFilePath,
+        codexProfile: 'news-flash',
+      },
     })
 
-    const newsapiKeyCheck = result.checks.find(check => check.name === 'NEWSAPI_API_KEY')
-    assert.equal(newsapiKeyCheck?.ok, true)
-    assert.match(newsapiKeyCheck?.detail ?? '', /local provider config/u)
+    assert.equal(result.ok, true)
+    assert.equal(result.agent.runner, 'codex')
+    assert.equal(result.agent.codexProfile, 'news-flash')
+    assert.equal(result.agent.envFile, envFilePath)
+    assert.equal(result.checks.find(check => check.name === 'codex')?.ok, true)
   } finally {
-    if (previousHome === undefined) delete process.env.SITE_CDP_HOME_DIR
-    else process.env.SITE_CDP_HOME_DIR = previousHome
+    if (previousHome === undefined) delete process.env.HOME
+    else process.env.HOME = previousHome
+    if (previousPath === undefined) delete process.env.PATH
+    else process.env.PATH = previousPath
+    await rm(tempDir, { recursive: true, force: true })
+  }
+})
+
+test('news flash preflight bridges Codex model provider env_key', async () => {
+  const previousHome = process.env.HOME
+  const previousPath = process.env.PATH
+  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-codex-env-key-'))
+  const binDir = join(tempDir, 'bin')
+  const codexHome = join(tempDir, '.codex')
+  const homeDir = join(tempDir, 'home')
+  try {
+    process.env.HOME = homeDir
+    process.env.PATH = `${binDir}:${previousPath ?? ''}`
+
+    await import('node:fs/promises').then(async fs => {
+      await fs.mkdir(binDir, { recursive: true })
+      await fs.mkdir(codexHome, { recursive: true })
+      await fs.mkdir(homeDir, { recursive: true })
+      const commands = ['node', 'npm', 'terminal-notifier', 'launchctl', 'codex']
+      for (const command of commands) {
+        await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+          mode: 0o755,
+        })
+      }
+      await fs.writeFile(join(codexHome, 'config.toml'), [
+        '[profiles.news-flash]',
+        'model_provider = "custom"',
+        '[model_providers.custom]',
+        'env_key = "CUSTOM_CODEX_KEY"',
+        '',
+      ].join('\n'))
+      await fs.writeFile(join(homeDir, '.profile'), [
+        `export CODEX_HOME=${codexHome}`,
+        'export CUSTOM_CODEX_KEY=from-profile',
+        '',
+      ].join('\n'))
+    })
+
+    const result = await doctorNewsFlashMonitor({
+      provider: 'hackernews',
+      repoRoot: process.cwd(),
+      intervalMinutes: 30,
+      shellPath: '/bin/sh',
+      agent: {
+        runner: 'codex',
+        codexProfile: 'news-flash',
+      },
+    })
+
+    assert.equal(result.ok, true)
+    assert.equal(
+      result.checks.find(check => check.name === 'codex provider env key')?.detail,
+      'CUSTOM_CODEX_KEY set in runner environment',
+    )
+  } finally {
+    if (previousHome === undefined) delete process.env.HOME
+    else process.env.HOME = previousHome
     if (previousPath === undefined) delete process.env.PATH
     else process.env.PATH = previousPath
     await rm(tempDir, { recursive: true, force: true })

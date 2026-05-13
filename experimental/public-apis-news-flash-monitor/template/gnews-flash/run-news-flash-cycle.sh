@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-source "$ROOT/claude-env.sh"
+source "$ROOT/agent-env.sh"
 DATA_DIR="$ROOT/data"
 SUMMARY_DIR="$ROOT/summary"
 CYCLES="${CYCLES:-2}"
@@ -18,7 +18,7 @@ for i in $(seq 1 "$CYCLES"); do
   fi
 done
 
-echo "== summarize news flash with Claude stream-json =="
+echo "== summarize news flash with agent runner =="
 node "$ROOT/summarize-news-flash-with-claude.mjs" "$JSONL_PATH" "$SUMMARY_DIR/news-flash.json"
 echo "== final news flash =="
 cat "$SUMMARY_DIR/news-flash.json"

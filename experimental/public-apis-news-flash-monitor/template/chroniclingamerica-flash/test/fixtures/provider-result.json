@@ -1,0 +1,48 @@
+{
+  "kind": "chroniclingamerica.search",
+  "api": {
+    "provider": "chroniclingamerica",
+    "authentication": "none",
+    "usesBrowserClickstream": false
+  },
+  "query": {
+    "query": "news",
+    "count": 2,
+    "page": 1
+  },
+  "pagination": {
+    "current": 1,
+    "perPage": 2,
+    "total": 1249405,
+    "returned": 2,
+    "maxCount": 1000,
+    "maxPage": 100
+  },
+  "items": [
+    {
+      "id": "http://www.loc.gov/resource/sn85033611/1860-11-08/ed-1/?sp=2",
+      "title": "Image 2 of The Cass County Republican",
+      "url": "https://www.loc.gov/resource/sn85033611/1860-11-08/ed-1/",
+      "date": "1860-11-08",
+      "digitized": true,
+      "description": "Abraham Lincoln election newspaper page.",
+      "subjects": ["newspapers", "michigan"],
+      "locations": ["dowagiac", "michigan"],
+      "partOf": ["chronicling america"],
+      "originalFormats": ["newspaper"],
+      "onlineFormats": ["image", "pdf", "online text"]
+    },
+    {
+      "id": "http://www.loc.gov/resource/sn84026749/1901-09-06/ed-1/",
+      "title": "The evening times. [volume], September 06, 1901",
+      "url": "https://www.loc.gov/resource/sn84026749/1901-09-06/ed-1/",
+      "date": "1901-09-06",
+      "digitized": true,
+      "subjects": ["washington", "newspapers"],
+      "locations": ["washington"],
+      "partOf": ["chronicling america"],
+      "originalFormats": ["newspaper"],
+      "onlineFormats": ["image", "pdf"]
+    }
+  ]
+}

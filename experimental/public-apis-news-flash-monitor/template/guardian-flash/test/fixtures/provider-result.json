@@ -1,0 +1,48 @@
+{
+  "kind": "guardian.search",
+  "pagination": {
+    "returned": 2,
+    "total": 2,
+    "pageSize": 2,
+    "currentPage": 1,
+    "pages": 1,
+    "startIndex": 1,
+    "maxPageSize": 50
+  },
+  "orderBy": "newest",
+  "articles": [
+    {
+      "id": "technology/2026/may/09/public-api",
+      "type": "article",
+      "sectionId": "technology",
+      "sectionName": "Technology",
+      "title": "Public API coverage expands at universities",
+      "webUrl": "https://www.theguardian.com/technology/public-api",
+      "apiUrl": "https://content.guardianapis.com/technology/public-api",
+      "publishedAt": "2026-05-09T04:00:00Z",
+      "pillarName": "News",
+      "isHosted": false,
+      "fields": {
+        "headline": "Public API coverage expands at universities",
+        "trailText": "<p>Universities widened access to API datasets.</p>",
+        "shortUrl": "https://gu.com/p/public-api",
+        "byline": "Example Reporter"
+      }
+    },
+    {
+      "id": "world/2026/may/09/open-data",
+      "type": "article",
+      "sectionId": "world",
+      "sectionName": "World",
+      "title": "Open data groups call for stronger transparency",
+      "webUrl": "https://www.theguardian.com/world/open-data",
+      "publishedAt": "2026-05-09T05:00:00Z",
+      "pillarName": "News",
+      "isHosted": false,
+      "fields": {
+        "headline": "Open data groups call for stronger transparency",
+        "trailText": "<p>Campaigners asked agencies to publish clearer data.</p>"
+      }
+    }
+  ]
+}

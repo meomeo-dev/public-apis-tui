@@ -1,0 +1,59 @@
+{
+  "kind": "marketaux.news",
+  "pagination": {
+    "found": 2,
+    "returned": 2,
+    "limit": 2,
+    "requestedLimit": 2,
+    "page": 1,
+    "maxLimit": 100,
+    "maxResultWindow": 20000
+  },
+  "articles": [
+    {
+      "uuid": "marketaux-1",
+      "title": "Chipmaker shares rise after cloud spending update",
+      "description": "Chipmakers gained as analysts raised cloud demand forecasts.",
+      "snippet": "Analysts pointed to stronger accelerator demand.",
+      "url": "https://example.com/climate",
+      "publishedAt": "2026-05-09T04:00:00Z",
+      "language": "en",
+      "source": "Market Wire",
+      "keywords": "markets,semiconductors",
+      "relevanceScore": 12.5,
+      "entities": [
+        {
+          "symbol": "NVDA",
+          "name": "Nvidia Corp",
+          "exchange": "NASDAQ",
+          "country": "us",
+          "type": "equity",
+          "industry": "Semiconductors",
+          "sentimentScore": 0.42
+        }
+      ]
+    },
+    {
+      "uuid": "marketaux-2",
+      "title": "Banks edge lower before inflation report",
+      "description": "Bank shares slipped before a scheduled inflation release.",
+      "url": "https://example.com/banks",
+      "publishedAt": "2026-05-09T05:00:00Z",
+      "language": "en",
+      "source": "Finance Daily",
+      "keywords": "banks,inflation",
+      "relevanceScore": 8.1,
+      "entities": [
+        {
+          "symbol": "JPM",
+          "name": "JPMorgan Chase",
+          "exchange": "NYSE",
+          "country": "us",
+          "type": "equity",
+          "industry": "Banking",
+          "sentimentScore": -0.12
+        }
+      ]
+    }
+  ]
+}

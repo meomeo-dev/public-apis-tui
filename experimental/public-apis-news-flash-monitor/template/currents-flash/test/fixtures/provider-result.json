@@ -1,0 +1,47 @@
+{
+  "kind": "currents.news",
+  "api": {
+    "provider": "currents",
+    "authentication": "apiKey query parameter from CURRENTS_API_KEY"
+  },
+  "query": {
+    "keywords": "public api",
+    "language": "en",
+    "country": "us",
+    "category": "technology",
+    "pageSize": 2,
+    "page": 1
+  },
+  "pagination": {
+    "page": 1,
+    "pageSize": 2,
+    "returned": 2,
+    "maxPageSize": 300
+  },
+  "rateLimit": {
+    "remaining": "999"
+  },
+  "articles": [
+    {
+      "id": "article-1",
+      "title": "Public API headline",
+      "description": "A short article description.",
+      "url": "https://example.com/news/public-api",
+      "author": "Reporter",
+      "image": "https://example.com/image.jpg",
+      "language": "en",
+      "category": ["technology"],
+      "published": "2026-05-04T08:00:00+00:00"
+    },
+    {
+      "id": "article-2",
+      "title": "Developer platforms expand API programs",
+      "description": "Platform teams announced new API access programs.",
+      "url": "https://example.com/news/platform-api",
+      "author": "Wire Desk",
+      "language": "en",
+      "category": ["business", "technology"],
+      "published": "2026-05-04T09:00:00+00:00"
+    }
+  ]
+}

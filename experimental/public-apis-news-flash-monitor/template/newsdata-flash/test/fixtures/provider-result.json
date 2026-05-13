@@ -1,0 +1,59 @@
+{
+  "kind": "newsdata.latest",
+  "api": {
+    "provider": "newsdata",
+    "endpoint": "GET /api/1/latest"
+  },
+  "query": {
+    "query": "markets",
+    "searchIn": "all",
+    "language": "en",
+    "size": 2
+  },
+  "pagination": {
+    "returned": 2,
+    "totalResults": 42,
+    "size": 2,
+    "maxFreeSize": 10,
+    "maxPaidSize": 50,
+    "nextPage": "fixture-next-page"
+  },
+  "articles": [
+    {
+      "id": "article-one",
+      "title": "Central bank signals policy shift",
+      "url": "https://example.com/policy",
+      "description": "Officials signaled a possible policy shift.",
+      "content": "Officials signaled a possible policy shift in remarks.",
+      "keywords": ["rates", "policy"],
+      "creator": ["Reporter One"],
+      "language": "en",
+      "countries": ["us"],
+      "categories": ["business"],
+      "datatype": "news",
+      "publishedAt": "2026-05-09T02:00:00Z",
+      "fetchedAt": "2026-05-09T02:05:00Z",
+      "duplicate": false,
+      "source": {
+        "id": "example",
+        "name": "Example News"
+      }
+    },
+    {
+      "id": "article-two",
+      "title": "Technology shares rally",
+      "url": "https://example.com/markets",
+      "description": "Technology shares rallied after earnings.",
+      "keywords": ["markets", "technology"],
+      "creator": ["Reporter Two"],
+      "language": "en",
+      "countries": ["us"],
+      "categories": ["business", "technology"],
+      "publishedAt": "2026-05-09T03:00:00Z",
+      "source": {
+        "id": "wire",
+        "name": "Wire"
+      }
+    }
+  ]
+}

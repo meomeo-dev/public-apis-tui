@@ -3,14 +3,23 @@ import { spawnSync } from 'node:child_process'
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
 const newsFlashTemplateDirs = [
+  'chroniclingamerica-flash',
+  'currents-flash',
   'gnews-flash',
+  'guardian-flash',
   'hackernews-flash',
   'hashnode-flash',
+  'marketaux-flash',
+  'mediastack-flash',
   'newsapi-flash',
+  'newsdata-flash',
+  'nytimes-flash',
   'spaceflightnews-flash',
+  'thenews-flash',
 ]
 const newsFlashTemplateFiles = [
   'README.md',
+  'agent-env.sh',
   'claude-env.sh',
   'collect-news-once.mjs',
   'notify-news-flash-macos.sh',
@@ -113,11 +122,13 @@ if (pack.status !== 0) {
     failures.push(`package includes unexpected files: ${unexpectedFiles.join(', ')}`)
   }
 
-  const forbiddenPrefixes = [
+  const hiddenRepositoryPrefixes = [
     '.github/',
-    'internal-tasks/',
-    'internal-workflows/',
-    'internal-notes/',
+    ['_', 'tasks/'].join(''),
+    ['_', 'workflows/'].join(''),
+    ['note', 'vault/'].join('-'),
+    ['.', 'deep-research/'].join(''),
+    ['.', 'codex/'].join(''),
     'scripts/',
     'specs/',
     'src/',
@@ -125,7 +136,7 @@ if (pack.status !== 0) {
     'tmp/',
   ]
   const forbiddenPackageFiles = packedFiles.filter(path => {
-    return forbiddenPrefixes.some(prefix => path.startsWith(prefix))
+    return hiddenRepositoryPrefixes.some(prefix => path.startsWith(prefix))
   })
   if (forbiddenPackageFiles.length > 0) {
     failures.push(

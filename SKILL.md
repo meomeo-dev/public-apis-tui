@@ -23,7 +23,6 @@ Use this repository to build, audit, and maintain a TypeScript CLI/TUI for docum
 | Contracts | `specs/public-apis/*.yml`, `specs/cli/cdp-cli-tui.spec.md` |
 | Tests | `test/*.test.ts`, `test/contract/*.test.ts`, `test/live-api/*.test.ts` |
 | Experimental monitors | `experimental/public-apis-news-flash-monitor/` |
-| Release package checks | `scripts/package-verify.mjs`, `package.json` |
 
 Provider selection and project scope are based on the public-apis catalog.
 
@@ -106,7 +105,7 @@ PUBLIC_APIS_LIVE_E2E=1 NODE_NO_WARNINGS=1 node --import tsx --test test/live-api
 7. Add text rendering in `src/interfaces/cli/output.ts` only after the JSON result shape is stable.
 8. Add CLI/RPC tests only after the use case is typed and covered.
 9. Add live API coverage or a precise documented skip reason.
-10. Update public documentation only when the provider behavior changes.
+10. Update public README or specs when provider behavior changes.
 
 ## Provider Contract Rules
 
@@ -188,8 +187,8 @@ NODE_NO_WARNINGS=1 node --import tsx --test --test-name-pattern 'experimental ne
 - `coverage/`: test output.
 - `tmp/`: ignored probe/audit scratch data.
 - `node_modules/`: dependency install output.
-- Public repository exports do not include private workflow state, research
-  records, local notes, or Codex skill files.
+- Local research archives, workflow state, and private agent configuration stay
+  out of the public repository.
 - `.cdp-cli`, `.site-cdp`, `browser-profile`, `browser-sessions`, `auth`: local browser/session state.
 
 ## Validation Policy

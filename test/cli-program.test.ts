@@ -87,6 +87,10 @@ test('experimental news flash install help shows scheduler options', () => {
   assert.match(help, /--provider <provider>/)
   assert.match(help, /--interval-minutes <minutes>/)
   assert.match(help, /--shell <path>/)
+  assert.match(help, /--agent-cli-runner <runner>/)
+  assert.match(help, /--agent-env <NAME=value>/)
+  assert.match(help, /--agent-env-file <path>/)
+  assert.match(help, /--codex-profile <profile>/)
   assert.match(help, /--hackernews-list <top\|new\|best\|ask\|show\|job>/)
   assert.match(help, /--newsapi-country <code>/)
   assert.doesNotMatch(help, /--param <NAME=value>/)
@@ -139,6 +143,28 @@ test('experimental news flash common typo points to install help', () => {
   assert.match(output, /--interval-minutes <minutes>/)
   assert.doesNotMatch(output, /--param <NAME=value>/)
   assert.match(output, /--dry-run/)
+})
+
+test('public API config help shows provider secret key names', () => {
+  const help = runCliHelp(['apis', 'config', 'currents', '--help'])
+  assert.match(help, /Provider Secrets:/)
+  assert.match(help, /required: CURRENTS_API_KEY/)
+  assert.match(
+    help,
+    /public-apis apis config currents --set-secret CURRENTS_API_KEY=<value>/,
+  )
+  assert.match(
+    help,
+    /public-apis apis config currents --unset-secret CURRENTS_API_KEY/,
+  )
+  assert.doesNotMatch(help, /--set-secret NAME=value/)
+})
+
+test('public API config help explains providers without stored secrets', () => {
+  const help = runCliHelp(['apis', 'config', 'chroniclingamerica', '--help'])
+  assert.match(help, /Provider Secrets:/)
+  assert.match(help, /chroniclingamerica does not require a stored API key/)
+  assert.doesNotMatch(help, /--set-secret [A-Z_]+=<value>/)
 })
 
 test('generic public API run help shows operation-specific options', () => {

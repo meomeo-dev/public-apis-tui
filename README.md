@@ -163,8 +163,8 @@ Offline replay is useful for tests, demos, and debugging unstable upstream APIs.
 
 The npm package includes the experimental news-flash monitor templates under
 `experimental/public-apis-news-flash-monitor/`. They can poll selected
-providers, ask Claude CLI to summarize the cycle, render a TXT briefing, and
-install a macOS LaunchAgent schedule.
+providers, ask an agent CLI to summarize the cycle, render a TXT briefing,
+and install a macOS LaunchAgent schedule.
 
 ```sh
 public-apis experimental news-flash providers
@@ -172,6 +172,13 @@ public-apis experimental news-flash run-once --provider hackernews
 public-apis experimental news-flash install --provider spaceflightnews \
   --interval-minutes 30
 ```
+
+The default agent runner is `claude_code`. Use `--agent-cli-runner codex`
+with `--codex-profile <profile>` to run Codex instead. Runner credentials can
+come from shell startup files, `--agent-env NAME=value`, or
+`--agent-env-file <path>`. The monitor bridges Claude `ANTHROPIC_*` settings
+and Codex `model_providers.*.env_key` names from `CODEX_CONFIG_FILE`,
+`CODEX_HOME/config.toml`, or `~/.codex/config.toml`.
 
 Use `PUBLIC_APIS_CLI_REPO=/path/to/public-apis-cli` when a template needs an
 explicit repository or package root. The legacy `PUBLIC_APIS_TUI_REPO` variable
