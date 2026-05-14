@@ -1333,7 +1333,14 @@ async function runPreflightChecks(options: InstallNewsFlashOptions & { templateD
     }
   }
   const keyedEnv = keyedProviderEnv[options.provider]
-  if (keyedEnv !== undefined) checks.push(await checkProviderSecret(options.provider, keyedEnv, options.shell))
+  if (keyedEnv !== undefined) {
+    checks.push(await checkProviderSecret(
+      options.provider,
+      keyedEnv,
+      options.shell,
+      agent,
+    ))
+  }
 
   return checks
 }
@@ -1385,8 +1392,24 @@ async function checkShell(shell: ShellRuntime): Promise<NewsFlashCheckResult> {
   }
 }
 
-async function checkProviderSecret(provider: NewsFlashProvider, name: string, shell: ShellRuntime): Promise<NewsFlashCheckResult> {
-  if (await hasShellEnv(name, shell)) {
+async function checkProviderSecret(
+  provider: NewsFlashProvider,
+  name: string,
+  shell: ShellRuntime,
+  agent: NormalizedNewsFlashAgentOptions,
+): Promise<NewsFlashCheckResult> {
+  if (agent.envFile !== undefined) {
+    const hasSecret = await hasAgentProvidedEnv(name, shell, agent)
+    return {
+      name,
+      ok: hasSecret,
+      detail: hasSecret
+        ? `${name} set by --agent-env-file`
+        : `${name} must be set in --agent-env-file: ${agent.envFile}`,
+    }
+  }
+
+  if (await hasShellEnv(name, shell, agent)) {
     return { name, ok: true, detail: `${name} set in ${shell.name} environment` }
   }
 
@@ -1664,9 +1687,20 @@ function createLaunchShellCommand(input: LaunchCommandInput): string {
   }
   return createUserShellScript([
     `cd ${shellQuote(input.templateDir)}`,
-    ...(input.provider === undefined ? [] : [createProviderSecretExportCommand(input.provider)]),
+    ...createLaunchProviderSecretCommands(input.provider, agent),
     `${assignments.join(' ')} ./run-news-flash-cycle-notify.sh`,
   ].join(' && '), shell)
+}
+
+function createLaunchProviderSecretCommands(
+  provider: NewsFlashProvider | undefined,
+  agent: NormalizedNewsFlashAgentOptions,
+): string[] {
+  if (provider === undefined) return []
+  const keyedEnv = keyedProviderEnv[provider]
+  if (keyedEnv === undefined) return []
+  if (agent.envFile !== undefined) return [`unset ${keyedEnv}`]
+  return [createProviderSecretExportCommand(provider)]
 }
 
 function createProviderSecretExportCommand(provider: NewsFlashProvider): string {
@@ -1816,8 +1850,36 @@ async function isLaunchAgentLoaded(label: string): Promise<boolean> {
   return result.exitCode === 0
 }
 
-async function hasShellEnv(name: string, shell: ShellRuntime): Promise<boolean> {
-  const result = await runUserShell('eval "value=\\${$1-}"; [ -n "$value" ]', [name], shell, { cwd: process.cwd(), timeoutMs: 15_000 })
+async function hasShellEnv(
+  name: string,
+  shell: ShellRuntime,
+  agent?: NormalizedNewsFlashAgentOptions | undefined,
+): Promise<boolean> {
+  const result = await runUserShell(
+    'eval "value=\\${$1-}"; [ -n "$value" ]',
+    [name],
+    shell,
+    { cwd: process.cwd(), timeoutMs: 15_000, agent },
+  )
+  return result.exitCode === 0
+}
+
+async function hasAgentProvidedEnv(
+  name: string,
+  shell: ShellRuntime,
+  agent: NormalizedNewsFlashAgentOptions,
+): Promise<boolean> {
+  const supportedShell = requireSupportedShell(shell)
+  const script = [
+    `unset ${name}`,
+    createAgentShellEnvCommand(agent),
+    'eval "value=\\${$1-}"; [ -n "$value" ]',
+  ].join('\n')
+  const result = await runProcess(
+    supportedShell.path,
+    ['-c', script, 'public-apis-cli-agent-env-check', name],
+    { cwd: process.cwd(), timeoutMs: 15_000 },
+  )
   return result.exitCode === 0
 }
 

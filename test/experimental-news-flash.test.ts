@@ -311,6 +311,35 @@ test(
 )
 
 test(
+  'LaunchAgent plist with agent env file omits provider config fallback',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.thenews',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      provider: 'thenews',
+      providerEnv: {
+        THENEWS_SEARCH: 'ai chips',
+      },
+      agent: {
+        runner: 'claude_code',
+        env: {},
+        envFile: '/tmp/news-flash/provider.env',
+      },
+    })
+    assert.match(plist, /AGENT_ENV_FILE=&apos;\/tmp\/news-flash\/provider\.env&apos;/u)
+    assert.match(plist, /THENEWS_SEARCH=&apos;ai chips&apos;/u)
+    assert.match(plist, /unset THENEWSAPI_API_KEY/u)
+    assert.doesNotMatch(plist, /THENEWSAPI_API_KEY=/u)
+    assert.doesNotMatch(plist, /configured_secret/u)
+    assert.doesNotMatch(plist, /config\.json/u)
+  },
+)
+
+test(
   'news flash keyed provider preflight accepts public-apis config secret',
   async () => {
     const previousHome = process.env.SITE_CDP_HOME_DIR
@@ -356,6 +385,71 @@ test(
     } finally {
       if (previousHome === undefined) delete process.env.SITE_CDP_HOME_DIR
       else process.env.SITE_CDP_HOME_DIR = previousHome
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  },
+)
+
+test(
+  'news flash keyed provider preflight accepts agent env file secret',
+  { skip: windowsPosixSkip },
+  async () => {
+    const previousHome = process.env.HOME
+    const previousPath = process.env.PATH
+    const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-provider-env-file-'))
+    const binDir = join(tempDir, 'bin')
+    const homeDir = join(tempDir, 'home')
+    const envFilePath = join(tempDir, 'provider.env')
+    try {
+      process.env.HOME = homeDir
+      process.env.PATH = `${binDir}:${previousPath ?? ''}`
+
+      await import('node:fs/promises').then(async fs => {
+        await fs.mkdir(binDir, { recursive: true })
+        await fs.mkdir(homeDir, { recursive: true })
+        const commands = [
+          'node',
+          'npm',
+          'claude',
+          'terminal-notifier',
+          'launchctl',
+        ]
+        for (const command of commands) {
+          await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+            mode: 0o755,
+          })
+        }
+        await fs.writeFile(envFilePath, [
+          'THENEWSAPI_API_KEY=test-provider-secret',
+          'ANTHROPIC_API_KEY=test-agent-secret',
+          '',
+        ].join('\n'))
+      })
+
+      const result = await doctorNewsFlashMonitor({
+        provider: 'thenews',
+        repoRoot: process.cwd(),
+        intervalMinutes: 30,
+        shellPath: '/bin/sh',
+        agent: {
+          envFile: envFilePath,
+        },
+      })
+
+      const keyCheck = result.checks.find(
+        check => check.name === 'THENEWSAPI_API_KEY',
+      )
+      assert.equal(keyCheck?.ok, true)
+      assert.match(keyCheck?.detail ?? '', /--agent-env-file/u)
+      assert.equal(
+        result.checks.find(check => check.name === 'agent env file')?.ok,
+        true,
+      )
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
       if (previousPath === undefined) delete process.env.PATH
       else process.env.PATH = previousPath
       await rm(tempDir, { recursive: true, force: true })

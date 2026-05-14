@@ -4,7 +4,7 @@ export const providerConfig = {
   displayName: 'TheNewsAPI',
   defaultLimit: '10',
   envPrefix: 'THENEWS',
-  itemArrayPath: 'data',
+  itemArrayPath: 'articles',
   cliOptions(env) {
     const options = ['--limit', env.THENEWS_LIMIT ?? this.defaultLimit]
     if (env.THENEWS_SEARCH) options.push('--search', env.THENEWS_SEARCH)
@@ -43,7 +43,7 @@ export const providerConfig = {
     }
   },
   normalize(result) {
-    const articles = Array.isArray(result.data) ? result.data : []
+    const articles = Array.isArray(result.articles) ? result.articles : []
     return articles.map((article, index) => ({
       id: article.uuid ?? article.url ?? `${index}`,
       title: article.title,
@@ -67,7 +67,7 @@ export const providerConfig = {
     return result.pagination ?? {
       ...(result.meta ?? {}),
       returned: result.meta?.returned ??
-        (Array.isArray(result.data) ? result.data.length : 0),
+        (Array.isArray(result.articles) ? result.articles.length : 0),
     }
   },
 }

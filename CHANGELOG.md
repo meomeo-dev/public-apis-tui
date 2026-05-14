@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.3 - 2026-05-14
+
+- Fix the TheNewsAPI news-flash template so collected `thenews.all` articles
+  are normalized from the CLI `articles` result field.
+- Tighten key-based news-flash LaunchAgent installs that use
+  `--agent-env-file` so scheduled runs source provider API keys from that file
+  instead of generating local provider-config fallback export blocks.
+- Add regression coverage for news-flash plist credential boundaries and
+  agent env-file provider key preflight.
+
 ## 0.7.2 - 2026-05-14
 
 - Add cost-controlled GitHub Actions release preflight with separate Linux and
