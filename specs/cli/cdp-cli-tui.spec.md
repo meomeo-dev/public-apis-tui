@@ -926,8 +926,15 @@ public-apis endpoints --format json | jq .
 
 ## 11. 参考证据
 
-本 SPEC 基于本仓库公开的 CLI contract、renderer contract、README
-和本地实现约束。
+本 SPEC 基于本仓库的 TUI 设计研究与本地原文归档：
+
+- `note-vault/command-mode-tui-preserves-cli-contracts.md`
+- `note-vault/command-mode-tui-components-are-projections.md`
+- `note-vault/command-tui-layout-is-block-contract.md`
+- `note-vault/command-tui-motion-is-lifecycle-feedback.md`
+- `note-vault/tui-ux-patterns-are-interaction-contracts.md`
+- `note-vault/tui-aesthetics-are-tokenized-constraints.md`
+- `note-vault/raw/deep-research-2026-tui-web-archive-index.md`
 
 关键依据：
 

@@ -18,6 +18,10 @@ import {
   writePublicApiProviderConfig,
 } from '../src/infrastructure/persistence/publicApiConfig.js'
 
+const windowsPosixSkip = process.platform === 'win32'
+  ? 'POSIX shell and LaunchAgent paths are not available on Windows'
+  : false
+
 function findProvider(
   providers: NewsFlashProviderInfo[],
   provider: string,
@@ -156,98 +160,115 @@ test('experimental news flash provider list exposes lifecycle metadata', () => {
   )
 })
 
-test('LaunchAgent plist includes runner, interval, repo env, and logs', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.test',
-    templateDir: '/tmp/news flash/template',
-    intervalSeconds: 1800,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/bash',
-  })
-  assert.match(plist, /<string>com.example.news-flash.test<\/string>/u)
-  assert.match(plist, /<string>\/bin\/bash<\/string>/u)
-  assert.match(plist, /<string>-c<\/string>/u)
-  assert.match(plist, /run-news-flash-cycle-notify\.sh/u)
-  assert.match(plist, /AGENT_CLI_RUNNER=&apos;claude_code&apos;/u)
-  assert.match(plist, /for name in .*ANTHROPIC_API_KEY/u)
-  assert.match(plist, /\.bashrc/u)
-  assert.match(plist, /cd &apos;\/tmp\/news flash\/template&apos; &amp;&amp;/u)
-  assert.doesNotMatch(plist, /CYCLES=1/u)
-  assert.doesNotMatch(plist, /\$\(P\)/u)
-  assert.match(plist, /<integer>1800<\/integer>/u)
-  assert.match(plist, /<key>PUBLIC_APIS_CLI_REPO<\/key>/u)
-  assert.match(plist, /<key>PUBLIC_APIS_TUI_REPO<\/key>/u)
-  assert.match(plist, /\/tmp\/public-apis-cli/u)
-  assert.match(plist, /launchagent\.out\.log/u)
-  assert.match(plist, /launchagent\.err\.log/u)
-})
+test(
+  'LaunchAgent plist includes runner, interval, repo env, and logs',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.test',
+      templateDir: '/tmp/news flash/template',
+      intervalSeconds: 1800,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/bash',
+    })
+    assert.match(plist, /<string>com.example.news-flash.test<\/string>/u)
+    assert.match(plist, /<string>\/bin\/bash<\/string>/u)
+    assert.match(plist, /<string>-c<\/string>/u)
+    assert.match(plist, /run-news-flash-cycle-notify\.sh/u)
+    assert.match(plist, /AGENT_CLI_RUNNER=&apos;claude_code&apos;/u)
+    assert.match(plist, /for name in .*ANTHROPIC_API_KEY/u)
+    assert.match(plist, /\.bashrc/u)
+    assert.match(plist, /cd &apos;\/tmp\/news flash\/template&apos; &amp;&amp;/u)
+    assert.doesNotMatch(plist, /CYCLES=1/u)
+    assert.doesNotMatch(plist, /\$\(P\)/u)
+    assert.match(plist, /<integer>1800<\/integer>/u)
+    assert.match(plist, /<key>PUBLIC_APIS_CLI_REPO<\/key>/u)
+    assert.match(plist, /<key>PUBLIC_APIS_TUI_REPO<\/key>/u)
+    assert.match(plist, /\/tmp\/public-apis-cli/u)
+    assert.match(plist, /launchagent\.out\.log/u)
+    assert.match(plist, /launchagent\.err\.log/u)
+  },
+)
 
-test('LaunchAgent plist persists provider parameters into runner command', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.params',
-    templateDir: '/tmp/news-flash/template',
-    intervalSeconds: 300,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/zsh',
-    providerEnv: {
-      HACKERNEWS_LIST: 'new',
-      HACKERNEWS_LIMIT: '5',
-    },
-  })
-  assert.match(plist, /HACKERNEWS_LIST=&apos;new&apos;/u)
-  assert.match(plist, /HACKERNEWS_LIMIT=&apos;5&apos;/u)
-  assert.doesNotMatch(plist, /CYCLES=1/u)
-})
-
-test('LaunchAgent plist persists agent runner env assignments', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.agent',
-    templateDir: '/tmp/news-flash/template',
-    intervalSeconds: 300,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/zsh',
-    agent: {
-      runner: 'claude_code',
-      envFile: '/tmp/news-flash/anthropic.env',
-      env: {
-        ANTHROPIC_BASE_URL: 'https://anthropic.example/v1',
-        ANTHROPIC_API_KEY: 'test-anthropic-secret',
-        ANTHROPIC_MODEL: 'claude-sonnet-4-5',
+test(
+  'LaunchAgent plist persists provider parameters into runner command',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.params',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      providerEnv: {
+        HACKERNEWS_LIST: 'new',
+        HACKERNEWS_LIMIT: '5',
       },
-    },
-  })
-  assert.match(plist, /AGENT_ENV_FILE=&apos;\/tmp\/news-flash\/anthropic.env&apos;/u)
-  assert.match(plist, /ANTHROPIC_MODEL=&apos;claude-sonnet-4-5&apos;/u)
-  assert.match(
-    plist,
-    /ANTHROPIC_BASE_URL=&apos;https:\/\/anthropic\.example\/v1&apos;/u,
-  )
-  assert.match(plist, /ANTHROPIC_API_KEY=&apos;test-anthropic-secret&apos;/u)
-})
+    })
+    assert.match(plist, /HACKERNEWS_LIST=&apos;new&apos;/u)
+    assert.match(plist, /HACKERNEWS_LIMIT=&apos;5&apos;/u)
+    assert.doesNotMatch(plist, /CYCLES=1/u)
+  },
+)
 
-test('LaunchAgent plist persists Codex runner profile', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.codex',
-    templateDir: '/tmp/news-flash/template',
-    intervalSeconds: 300,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/zsh',
-    agent: {
-      runner: 'codex',
-      codexProfile: 'news-flash',
-      env: {
-        CODEX_BIN: '/usr/local/bin/codex',
+test(
+  'LaunchAgent plist persists agent runner env assignments',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.agent',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      agent: {
+        runner: 'claude_code',
+        envFile: '/tmp/news-flash/anthropic.env',
+        env: {
+          ANTHROPIC_BASE_URL: 'https://anthropic.example/v1',
+          ANTHROPIC_API_KEY: 'test-anthropic-secret',
+          ANTHROPIC_MODEL: 'claude-sonnet-4-5',
+        },
       },
-    },
-  })
-  assert.match(plist, /AGENT_CLI_RUNNER=&apos;codex&apos;/u)
-  assert.match(plist, /CODEX_PROFILE=&apos;news-flash&apos;/u)
-  assert.match(plist, /CODEX_BIN=&apos;\/usr\/local\/bin\/codex&apos;/u)
-  assert.match(plist, /for name in .*CODEX_PROFILE/u)
-})
+    })
+    assert.match(plist, /AGENT_ENV_FILE=&apos;\/tmp\/news-flash\/anthropic.env&apos;/u)
+    assert.match(plist, /ANTHROPIC_MODEL=&apos;claude-sonnet-4-5&apos;/u)
+    assert.match(
+      plist,
+      /ANTHROPIC_BASE_URL=&apos;https:\/\/anthropic\.example\/v1&apos;/u,
+    )
+    assert.match(plist, /ANTHROPIC_API_KEY=&apos;test-anthropic-secret&apos;/u)
+  },
+)
+
+test(
+  'LaunchAgent plist persists Codex runner profile',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.codex',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      agent: {
+        runner: 'codex',
+        codexProfile: 'news-flash',
+        env: {
+          CODEX_BIN: '/usr/local/bin/codex',
+        },
+      },
+    })
+    assert.match(plist, /AGENT_CLI_RUNNER=&apos;codex&apos;/u)
+    assert.match(plist, /CODEX_PROFILE=&apos;news-flash&apos;/u)
+    assert.match(plist, /CODEX_BIN=&apos;\/usr\/local\/bin\/codex&apos;/u)
+    assert.match(plist, /for name in .*CODEX_PROFILE/u)
+  },
+)
 
 test(
   'LaunchAgent plist reads provider secret from local config without value',
+  { skip: windowsPosixSkip },
   () => {
     const plist = createLaunchAgentPlist({
       label: 'com.example.news-flash.newsapi',
@@ -267,23 +288,27 @@ test(
   },
 )
 
-test('LaunchAgent plist reads new provider secret without embedding value', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.guardian',
-    templateDir: '/tmp/news-flash/template',
-    intervalSeconds: 300,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/zsh',
-    provider: 'guardian',
-    providerEnv: {
-      GUARDIAN_QUERY: 'technology',
-    },
-  })
-  assert.match(plist, /GUARDIAN_API_KEY/u)
-  assert.match(plist, /config\.json/u)
-  assert.match(plist, /GUARDIAN_QUERY=&apos;technology&apos;/u)
-  assert.doesNotMatch(plist, /test-guardian-secret/u)
-})
+test(
+  'LaunchAgent plist reads new provider secret without embedding value',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.guardian',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 300,
+      repoRoot: '/tmp/public-apis-cli',
+      shellPath: '/bin/zsh',
+      provider: 'guardian',
+      providerEnv: {
+        GUARDIAN_QUERY: 'technology',
+      },
+    })
+    assert.match(plist, /GUARDIAN_API_KEY/u)
+    assert.match(plist, /config\.json/u)
+    assert.match(plist, /GUARDIAN_QUERY=&apos;technology&apos;/u)
+    assert.doesNotMatch(plist, /test-guardian-secret/u)
+  },
+)
 
 test(
   'news flash keyed provider preflight accepts public-apis config secret',
@@ -338,128 +363,144 @@ test(
   },
 )
 
-test('news flash preflight loads agent env file before runner checks', async () => {
-  const previousHome = process.env.HOME
-  const previousPath = process.env.PATH
-  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-agent-env-file-'))
-  const binDir = join(tempDir, 'bin')
-  const homeDir = join(tempDir, 'home')
-  const codexPath = join(tempDir, 'codex-from-env-file')
-  const envFilePath = join(tempDir, 'agent.env')
-  try {
-    process.env.HOME = homeDir
-    process.env.PATH = `${binDir}:${previousPath ?? ''}`
+test(
+  'news flash preflight loads agent env file before runner checks',
+  { skip: windowsPosixSkip },
+  async () => {
+    const previousHome = process.env.HOME
+    const previousPath = process.env.PATH
+    const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-agent-env-file-'))
+    const binDir = join(tempDir, 'bin')
+    const homeDir = join(tempDir, 'home')
+    const codexPath = join(tempDir, 'codex-from-env-file')
+    const envFilePath = join(tempDir, 'agent.env')
+    try {
+      process.env.HOME = homeDir
+      process.env.PATH = `${binDir}:${previousPath ?? ''}`
 
-    await import('node:fs/promises').then(async fs => {
-      await fs.mkdir(binDir, { recursive: true })
-      await fs.mkdir(homeDir, { recursive: true })
-      for (const command of ['node', 'npm', 'terminal-notifier', 'launchctl']) {
-        await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
-          mode: 0o755,
-        })
-      }
-      await fs.writeFile(codexPath, '#!/bin/sh\nexit 0\n', { mode: 0o755 })
-      await fs.writeFile(envFilePath, `export CODEX_BIN=${codexPath}\n`)
-    })
+      await import('node:fs/promises').then(async fs => {
+        await fs.mkdir(binDir, { recursive: true })
+        await fs.mkdir(homeDir, { recursive: true })
+        for (const command of ['node', 'npm', 'terminal-notifier', 'launchctl']) {
+          await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+            mode: 0o755,
+          })
+        }
+        await fs.writeFile(codexPath, '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+        await fs.writeFile(envFilePath, `export CODEX_BIN=${codexPath}\n`)
+      })
 
-    const result = await doctorNewsFlashMonitor({
-      provider: 'hackernews',
-      repoRoot: process.cwd(),
-      intervalMinutes: 30,
+      const result = await doctorNewsFlashMonitor({
+        provider: 'hackernews',
+        repoRoot: process.cwd(),
+        intervalMinutes: 30,
+        shellPath: '/bin/sh',
+        agent: {
+          runner: 'codex',
+          envFile: envFilePath,
+          codexProfile: 'news-flash',
+        },
+      })
+
+      assert.equal(result.agent.runner, 'codex')
+      assert.equal(result.agent.codexProfile, 'news-flash')
+      assert.equal(result.agent.envFile, envFilePath)
+      assert.equal(result.checks.find(check => check.name === 'codex')?.ok, true)
+      assert.equal(
+        result.checks.find(check => check.name === 'agent env file')?.ok,
+        true,
+      )
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  },
+)
+
+test(
+  'news flash preflight bridges Codex model provider env_key',
+  { skip: windowsPosixSkip },
+  async () => {
+    const previousHome = process.env.HOME
+    const previousPath = process.env.PATH
+    const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-codex-env-key-'))
+    const binDir = join(tempDir, 'bin')
+    const codexHome = join(tempDir, '.codex')
+    const homeDir = join(tempDir, 'home')
+    try {
+      process.env.HOME = homeDir
+      process.env.PATH = `${binDir}:${previousPath ?? ''}`
+
+      await import('node:fs/promises').then(async fs => {
+        await fs.mkdir(binDir, { recursive: true })
+        await fs.mkdir(codexHome, { recursive: true })
+        await fs.mkdir(homeDir, { recursive: true })
+        const commands = ['node', 'npm', 'terminal-notifier', 'launchctl', 'codex']
+        for (const command of commands) {
+          await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
+            mode: 0o755,
+          })
+        }
+        await fs.writeFile(join(codexHome, 'config.toml'), [
+          '[profiles.news-flash]',
+          'model_provider = "custom"',
+          '[model_providers.custom]',
+          'env_key = "CUSTOM_CODEX_KEY"',
+          '',
+        ].join('\n'))
+        await fs.writeFile(join(homeDir, '.profile'), [
+          `export CODEX_HOME=${codexHome}`,
+          'export CUSTOM_CODEX_KEY=from-profile',
+          '',
+        ].join('\n'))
+      })
+
+      const result = await doctorNewsFlashMonitor({
+        provider: 'hackernews',
+        repoRoot: process.cwd(),
+        intervalMinutes: 30,
+        shellPath: '/bin/sh',
+        agent: {
+          runner: 'codex',
+          codexProfile: 'news-flash',
+        },
+      })
+
+      assert.equal(
+        result.checks.find(check => {
+          return check.name === 'codex provider env key'
+        })?.detail,
+        'CUSTOM_CODEX_KEY set in runner environment',
+      )
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  },
+)
+
+test(
+  'LaunchAgent plist supports sh-compatible shell startup',
+  { skip: windowsPosixSkip },
+  () => {
+    const plist = createLaunchAgentPlist({
+      label: 'com.example.news-flash.sh',
+      templateDir: '/tmp/news-flash/template',
+      intervalSeconds: 60,
+      repoRoot: '/tmp/public-apis-cli',
       shellPath: '/bin/sh',
-      agent: {
-        runner: 'codex',
-        envFile: envFilePath,
-        codexProfile: 'news-flash',
-      },
     })
-
-    assert.equal(result.ok, true)
-    assert.equal(result.agent.runner, 'codex')
-    assert.equal(result.agent.codexProfile, 'news-flash')
-    assert.equal(result.agent.envFile, envFilePath)
-    assert.equal(result.checks.find(check => check.name === 'codex')?.ok, true)
-  } finally {
-    if (previousHome === undefined) delete process.env.HOME
-    else process.env.HOME = previousHome
-    if (previousPath === undefined) delete process.env.PATH
-    else process.env.PATH = previousPath
-    await rm(tempDir, { recursive: true, force: true })
-  }
-})
-
-test('news flash preflight bridges Codex model provider env_key', async () => {
-  const previousHome = process.env.HOME
-  const previousPath = process.env.PATH
-  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-codex-env-key-'))
-  const binDir = join(tempDir, 'bin')
-  const codexHome = join(tempDir, '.codex')
-  const homeDir = join(tempDir, 'home')
-  try {
-    process.env.HOME = homeDir
-    process.env.PATH = `${binDir}:${previousPath ?? ''}`
-
-    await import('node:fs/promises').then(async fs => {
-      await fs.mkdir(binDir, { recursive: true })
-      await fs.mkdir(codexHome, { recursive: true })
-      await fs.mkdir(homeDir, { recursive: true })
-      const commands = ['node', 'npm', 'terminal-notifier', 'launchctl', 'codex']
-      for (const command of commands) {
-        await fs.writeFile(join(binDir, command), '#!/bin/sh\nexit 0\n', {
-          mode: 0o755,
-        })
-      }
-      await fs.writeFile(join(codexHome, 'config.toml'), [
-        '[profiles.news-flash]',
-        'model_provider = "custom"',
-        '[model_providers.custom]',
-        'env_key = "CUSTOM_CODEX_KEY"',
-        '',
-      ].join('\n'))
-      await fs.writeFile(join(homeDir, '.profile'), [
-        `export CODEX_HOME=${codexHome}`,
-        'export CUSTOM_CODEX_KEY=from-profile',
-        '',
-      ].join('\n'))
-    })
-
-    const result = await doctorNewsFlashMonitor({
-      provider: 'hackernews',
-      repoRoot: process.cwd(),
-      intervalMinutes: 30,
-      shellPath: '/bin/sh',
-      agent: {
-        runner: 'codex',
-        codexProfile: 'news-flash',
-      },
-    })
-
-    assert.equal(result.ok, true)
-    assert.equal(
-      result.checks.find(check => check.name === 'codex provider env key')?.detail,
-      'CUSTOM_CODEX_KEY set in runner environment',
-    )
-  } finally {
-    if (previousHome === undefined) delete process.env.HOME
-    else process.env.HOME = previousHome
-    if (previousPath === undefined) delete process.env.PATH
-    else process.env.PATH = previousPath
-    await rm(tempDir, { recursive: true, force: true })
-  }
-})
-
-test('LaunchAgent plist supports sh-compatible shell startup', () => {
-  const plist = createLaunchAgentPlist({
-    label: 'com.example.news-flash.sh',
-    templateDir: '/tmp/news-flash/template',
-    intervalSeconds: 60,
-    repoRoot: '/tmp/public-apis-cli',
-    shellPath: '/bin/sh',
-  })
-  assert.match(plist, /<string>\/bin\/sh<\/string>/u)
-  assert.match(plist, /\.profile/u)
-  assert.match(plist, /eval &quot;value=\\\$\{\$name-\}&quot;/u)
-})
+    assert.match(plist, /<string>\/bin\/sh<\/string>/u)
+    assert.match(plist, /\.profile/u)
+    assert.match(plist, /eval &quot;value=\\\$\{\$name-\}&quot;/u)
+  },
+)
 
 test('news flash smoke validation rejects failed collector record', () => {
   const validation = validateNewsFlashSmokeOutput(JSON.stringify({
@@ -492,61 +533,65 @@ test('news flash smoke validation accepts non-empty collector record', () => {
   assert.equal(validation.itemCount, 2)
 })
 
-test('news flash status reads installed plist path over repo-root', async () => {
-  const previousHome = process.env.HOME
-  const previousPath = process.env.PATH
-  const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-status-plist-'))
-  const homeDir = join(tempDir, 'home')
-  const binDir = join(tempDir, 'bin')
-  const templateDir = join(tempDir, 'installed-template')
-  const repoRoot = join(tempDir, 'installed-repo')
-  try {
-    process.env.HOME = homeDir
-    process.env.PATH = `${binDir}:${previousPath ?? ''}`
-    await import('node:fs/promises').then(async fs => {
-      await fs.mkdir(join(homeDir, 'Library/LaunchAgents'), { recursive: true })
-      await fs.mkdir(templateDir, { recursive: true })
-      await fs.mkdir(binDir, { recursive: true })
-      await fs.writeFile(join(binDir, 'launchctl'), '#!/bin/sh\nexit 1\n', {
-        mode: 0o755,
+test(
+  'news flash status reads installed plist path over repo-root',
+  { skip: windowsPosixSkip },
+  async () => {
+    const previousHome = process.env.HOME
+    const previousPath = process.env.PATH
+    const tempDir = await mkdtemp(join(tmpdir(), 'news-flash-status-plist-'))
+    const homeDir = join(tempDir, 'home')
+    const binDir = join(tempDir, 'bin')
+    const templateDir = join(tempDir, 'installed-template')
+    const repoRoot = join(tempDir, 'installed-repo')
+    try {
+      process.env.HOME = homeDir
+      process.env.PATH = `${binDir}:${previousPath ?? ''}`
+      await import('node:fs/promises').then(async fs => {
+        await fs.mkdir(join(homeDir, 'Library/LaunchAgents'), { recursive: true })
+        await fs.mkdir(templateDir, { recursive: true })
+        await fs.mkdir(binDir, { recursive: true })
+        await fs.writeFile(join(binDir, 'launchctl'), '#!/bin/sh\nexit 1\n', {
+          mode: 0o755,
+        })
       })
-    })
 
-    const plist = createLaunchAgentPlist({
-      label: 'com.public-apis-cli.experimental.news-flash.hackernews',
-      templateDir,
-      intervalSeconds: 60,
-      repoRoot,
-      shellPath: '/bin/sh',
-    })
-    await writeFile(
-      join(
-        homeDir,
-        'Library/LaunchAgents',
-        'com.public-apis-cli.experimental.news-flash.hackernews.plist',
-      ),
-      plist,
-    )
+      const plist = createLaunchAgentPlist({
+        label: 'com.public-apis-cli.experimental.news-flash.hackernews',
+        templateDir,
+        intervalSeconds: 60,
+        repoRoot,
+        shellPath: '/bin/sh',
+      })
+      await writeFile(
+        join(
+          homeDir,
+          'Library/LaunchAgents',
+          'com.public-apis-cli.experimental.news-flash.hackernews.plist',
+        ),
+        plist,
+      )
 
-    const result = await getNewsFlashStatus({
-      provider: 'hackernews',
-      repoRoot: '/wrong/repo',
-    })
-    const monitor = result.monitors[0]
-    assert.ok(monitor)
-    assert.equal(monitor.statusSource, 'installed-plist')
-    assert.equal(monitor.templateDir, templateDir)
-    assert.equal(monitor.installedWorkingDirectory, templateDir)
-    assert.equal(monitor.installedRepoRoot, repoRoot)
-    assert.equal(
-      monitor.latestSummaryPath,
-      join(templateDir, 'summary/news-flash.txt'),
-    )
-  } finally {
-    if (previousHome === undefined) delete process.env.HOME
-    else process.env.HOME = previousHome
-    if (previousPath === undefined) delete process.env.PATH
-    else process.env.PATH = previousPath
-    await rm(tempDir, { recursive: true, force: true })
-  }
-})
+      const result = await getNewsFlashStatus({
+        provider: 'hackernews',
+        repoRoot: '/wrong/repo',
+      })
+      const monitor = result.monitors[0]
+      assert.ok(monitor)
+      assert.equal(monitor.statusSource, 'installed-plist')
+      assert.equal(monitor.templateDir, templateDir)
+      assert.equal(monitor.installedWorkingDirectory, templateDir)
+      assert.equal(monitor.installedRepoRoot, repoRoot)
+      assert.equal(
+        monitor.latestSummaryPath,
+        join(templateDir, 'summary/news-flash.txt'),
+      )
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME
+      else process.env.HOME = previousHome
+      if (previousPath === undefined) delete process.env.PATH
+      else process.env.PATH = previousPath
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  },
+)

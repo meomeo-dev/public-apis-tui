@@ -98,12 +98,19 @@ if (
   failures.push('package.json homepage must point to public GitHub README')
 }
 
-const pack = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+const npmPackCommand = resolveNpmPackCommand([
+  '--dry-run',
+  '--json',
+  '--ignore-scripts',
+])
+const pack = spawnSync(npmPackCommand.command, npmPackCommand.args, {
   encoding: 'utf8',
 })
 
 if (pack.status !== 0) {
-  failures.push(`npm pack --dry-run failed: ${pack.stderr || pack.stdout}`)
+  failures.push(
+    `npm pack --dry-run failed: ${pack.error?.message || pack.stderr || pack.stdout}`,
+  )
 } else {
   const packed = JSON.parse(pack.stdout)[0]
   if (!packed || packed.entryCount <= 0) {
@@ -173,3 +180,17 @@ if (failures.length > 0) {
 }
 
 console.log('package:verify passed.')
+
+function resolveNpmPackCommand(args) {
+  const npmExecPath = process.env.npm_execpath
+  if (npmExecPath !== undefined && npmExecPath.trim() !== '') {
+    return {
+      command: process.execPath,
+      args: [npmExecPath, 'pack', ...args],
+    }
+  }
+  return {
+    command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
+    args: ['pack', ...args],
+  }
+}

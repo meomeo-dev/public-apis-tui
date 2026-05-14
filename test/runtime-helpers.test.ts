@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
 import {
   isPathInside,
@@ -53,11 +53,11 @@ test('resolveAppHomeDir defaults to a package-scoped user home directory', () =>
 
   assert.equal(
     resolveAppHomeDir(env, 'cdp-cli-template'),
-    '/Users/tester/.cdp-cli/cdp-cli-template',
+    expectedUserHomePath('.cdp-cli', 'cdp-cli-template'),
   )
   assert.equal(
     resolveDefaultBrowserUserDataDir(env, 'cdp-cli-template'),
-    '/Users/tester/.cdp-cli/cdp-cli-template/browser-profile',
+    expectedUserHomePath('.cdp-cli', 'cdp-cli-template', 'browser-profile'),
   )
 })
 
@@ -69,16 +69,28 @@ test('managed auth paths isolate auth profiles under app auth root', () => {
   const paths = resolveManagedAuthProfilePaths('v2ex-main', env, 'cdp-cli-template')
   assert.equal(
     paths.authDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/auth/v2ex-main',
+    expectedUserHomePath('.cdp-cli', 'cdp-cli-template', 'auth', 'v2ex-main'),
   )
   assert.equal(
     paths.chromeUserDataDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/auth/v2ex-main/chrome-profile',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'auth',
+      'v2ex-main',
+      'chrome-profile',
+    ),
   )
   assert.equal(paths.chromeProfileDirectory, 'Default')
   assert.equal(
     paths.stateFile,
-    '/Users/tester/.cdp-cli/cdp-cli-template/auth/v2ex-main/auth-state.json',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'auth',
+      'v2ex-main',
+      'auth-state.json',
+    ),
   )
 })
 
@@ -90,7 +102,13 @@ test('managed auth paths support legacy CLI name read fallback', () => {
   const legacy = resolveLegacyManagedAuthProfilePaths('v2ex-main', env)
   assert.equal(
     legacy?.stateFile,
-    '/Users/tester/.cdp-cli/public-apis-tui/auth/v2ex-main/auth-state.json',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'public-apis-tui',
+      'auth',
+      'v2ex-main',
+      'auth-state.json',
+    ),
   )
 })
 
@@ -102,22 +120,36 @@ test('resolveManagedBrowserSessionPaths isolates browser sessions by slug', () =
   const paths = resolveManagedBrowserSessionPaths('qa-main', env, 'cdp-cli-template')
   assert.equal(
     paths.sessionRootDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/browser-sessions',
+    expectedUserHomePath('.cdp-cli', 'cdp-cli-template', 'browser-sessions'),
   )
   assert.equal(
     paths.sessionDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/browser-sessions/qa-main',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'browser-sessions',
+      'qa-main',
+    ),
   )
   assert.equal(
     paths.chromeUserDataDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/browser-sessions/qa-main/chrome-profile',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'browser-sessions',
+      'qa-main',
+      'chrome-profile',
+    ),
   )
   assert.equal(paths.chromeProfileDirectory, 'Default')
   assert.equal(
     paths.stateFile,
-    (
-      '/Users/tester/.cdp-cli/cdp-cli-template/browser-sessions/' +
-      'qa-main/browser-state.json'
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'browser-sessions',
+      'qa-main',
+      'browser-state.json',
     ),
   )
 })
@@ -130,7 +162,12 @@ test('resolveManagedBrowserSessionPaths sanitizes unsafe path characters', () =>
   const paths = resolveManagedBrowserSessionPaths('../qa main', env, 'cdp-cli-template')
   assert.equal(
     paths.sessionDir,
-    '/Users/tester/.cdp-cli/cdp-cli-template/browser-sessions/qa-main',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'cdp-cli-template',
+      'browser-sessions',
+      'qa-main',
+    ),
   )
 })
 
@@ -144,16 +181,31 @@ test('public API storage supports current CLI name and legacy read fallback', ()
     env,
     'public-apis-cli',
   )
-  assert.equal(current.appHomeDir, '/Users/tester/.cdp-cli/public-apis-cli')
+  assert.equal(current.appHomeDir, expectedUserHomePath(
+    '.cdp-cli',
+    'public-apis-cli',
+  ))
   assert.equal(
     current.configFile,
-    '/Users/tester/.cdp-cli/public-apis-cli/public-apis/newsapi/config.json',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'public-apis-cli',
+      'public-apis',
+      'newsapi',
+      'config.json',
+    ),
   )
 
   const legacy = resolveLegacyPublicApiProviderStoragePaths('newsapi', env)
   assert.equal(
     legacy?.configFile,
-    '/Users/tester/.cdp-cli/public-apis-tui/public-apis/newsapi/config.json',
+    expectedUserHomePath(
+      '.cdp-cli',
+      'public-apis-tui',
+      'public-apis',
+      'newsapi',
+      'config.json',
+    ),
   )
 })
 
@@ -201,4 +253,8 @@ function restoreEnvValue(name: string, value: string | undefined): void {
   } else {
     process.env[name] = value
   }
+}
+
+function expectedUserHomePath(...segments: string[]): string {
+  return join('/Users/tester', ...segments)
 }

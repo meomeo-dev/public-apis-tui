@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.2 - 2026-05-14
+
+- Add cost-controlled GitHub Actions release preflight with separate Linux and
+  Windows jobs so platform validation can run independently.
+- Clarify WE skill routing for CI maintenance, release preparation, npm
+  publishing, and project-local help.
+- Standardize npm script names for release gates while keeping backward
+  compatible aliases for existing development commands.
+- Document npm tarball naming, GitHub Release artifact guidance, and release
+  version/tag ownership.
+
 ## 0.7.1 - 2026-05-13
 
 - Harden news-flash runtime templates for global npm installs by resolving the

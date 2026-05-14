@@ -14,7 +14,7 @@ const plan = buildTestPlan(changedFiles)
 
 if (plan.steps.length === 0) {
   console.log('test:changed found no mapped test targets.')
-  console.log('Run npm run test:regression before merging broad or risky changes.')
+  console.log('Run npm run test:all before merging broad or risky changes.')
   process.exit(0)
 }
 
